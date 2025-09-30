@@ -1,0 +1,68 @@
+<!-- templates/admin/logs.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Админка — История диалогов</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f8f9fa; padding: 20px; }
+        .log-entry { margin-bottom: 15px; padding: 15px; border: 1px solid #dee2e6; border-radius: 8px; }
+        .source-b { background: #d4edda; }
+        .source-g { background: #d1ecf1; }
+        .question { font-weight: bold; color: #1f2d3d; }
+        .answer { margin: 8px 0; white-space: pre-wrap; }
+        .timestamp { font-size: 0.85em; color: #6c757d; }
+        .edit-form { margin-top: 10px; }
+        .edit-form textarea { width: 100%; height: 80px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>📜 История диалогов</h2>
+    <p>
+        <a href="{{ url_for('admin_dashboard') }}" class="btn btn-secondary btn-sm">← Назад</a>
+        <a href="{{ url_for('export_logs') }}" class="btn btn-success btn-sm">📤 Экспорт в JSON</a>
+        <a href="{{ url_for('admin_logout') }}" class="btn btn-danger btn-sm">Выход</a>
+    </p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    {% if logs %}
+        {% for log in logs %}
+        <div class="log-entry source-{{ 'b' if log.source == 'knowledge_base' else 'g' }}">
+            <div class="timestamp">{{ log.timestamp }}</div>
+            <div class="question">💬 {{ log.question }}</div>
+            <div class="answer">🤖 {{ log.answer }}</div>
+            <div class="source">
+                <span class="badge bg-{{ 'success' if log.source == 'knowledge_base' else 'info' }}">
+                    {{ 'База знаний' if log.source == 'knowledge_base' else 'Yandex GPT' }}
+                </span>
+            </div>
+
+            <!-- Форма редактирования -->
+            <form class="edit-form" method="POST" action="{{ url_for('edit_response') }}" onsubmit="return confirm('Сохранить этот ответ в базу знаний? Это заменит старый ответ.')">
+                <input type="hidden" name="question" value="{{ log.question }}">
+                <label><strong>Улучшите ответ:</strong></label>
+                <textarea name="answer" class="form-control" required>{{ log.answer }}</textarea>
+                <button type="submit" class="btn btn-primary btn-sm mt-2">✅ Сохранить в базу знаний</button>
+            </form>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="text-muted">Нет записей в журнале.</p>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

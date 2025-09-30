@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Стоматологическая поликлиника №22 Департамента здравоохранения города Москвы</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* === СТИЛИ ДЛЯ ФИКСИРОВАННОГО ЧАТА === */
+        .chat-container {
+            display: flex;
+        flex-direction: column;
+        height: 75vh; /* Увеличено с 70vh */
+        max-height: 550px; /* Увеличено с 500px */
+        margin-bottom: 10px;
+        }
+        
+        .chat-box {
+            flex: 1;
+            height: auto;
+            min-height: 250px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 15px;
+            width: 100%;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+
+        /* Область под чатом - фиксированная высота */
+        .input-section {
+            margin-top: auto;
+        }
+
+        /* === СТИЛИ ДЛЯ ВИРТУАЛЬНОЙ КЛАВИАТУРЫ === */
+        .keyboard-toggle-container {
+            margin: 10px 0;
+            text-align: center;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #007efd;
+        }
+
+        .keyboard-toggle-label {
+            display: inline-flex;
+            align-items: center;
+            cursor: pointer;
+            font-size: 14px;
+            color: #495057;
+            font-weight: 500;
+        }
+
+        .keyboard-toggle {
+            display: none;
+        }
+
+        .keyboard-toggle-slider {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background-color: #6c757d;
+            border-radius: 24px;
+            margin-right: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .keyboard-toggle-slider:before {
+            content: "";
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background-color: white;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s;
+        }
+
+        .keyboard-toggle:checked + .keyboard-toggle-slider {
+            background-color: #007bff;
+        }
+
+        .keyboard-toggle:checked + .keyboard-toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        .keyboard-toggle-text {
+            font-weight: 500;
+        }
+
+        /* Улучшенные стили виртуальной клавиатуры */
+        .virtual-keyboard {
+        background: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 10px; /* Увеличено с 8px */
+        margin: 10px 0; /* Увеличено с 8px 0 */
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        max-height: 350px; /* Увеличено с 300px */
+        overflow-y: auto;
+        flex-shrink: 0; /* Запрещаем сжатие */
+        }
+
+        .keyboard-row {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 5px;
+        }
+
+        .key-key {
+            flex: 1;
+            margin: 2px;
+            padding: 8px 6px;
+            border: 1px solid #e61b1b;
+            background: rgb(7, 92, 250);
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+            min-width: 40px;
+            max-width: 60px;
+        }
+
+        .key-key:hover {
+            background: #e9e9e9;
+            transform: translateY(-1px);
+        }
+
+        .key-key:active {
+            background: #ddd;
+            transform: translateY(1px);
+        }
+
+        .key-space {
+            flex: 4;
+            max-width: none;
+        }
+
+        .key-backspace, .key-enter, .key-shift, .key-clear {
+            background: #6c757d;
+            color: white;
+            font-weight: bold;
+        }
+
+        .key-backspace:hover, .key-enter:hover, .key-shift:hover, .key-clear:hover {
+            background: #5a6268;
+        }
+
+        .key-enter {
+            background: #28a745;
+        }
+
+        .key-enter:hover {
+            background: #218838;
+        }
+
+        .key-clear {
+            background: #dc3545;
+        }
+
+        .key-clear:hover {
+            background: #c82333;
+        }
+
+        /* Адаптивность для мобильных устройств */
+        @media (max-width: 768px) {
+            .key-key {
+                padding: 6px 4px;
+                font-size: 12px;
+                min-width: 35px;
+            }
+            
+            .virtual-keyboard {
+                padding: 5px;
+                margin: 8px 0;
+            }
+        }
+
+        @media (max-height: 700px) {
+            .chat-container {
+                height: 60vh;
+                max-height: 400px;
+            }
+            
+            .chat-box {
+                min-height: 250px;
+            }
+            
+            .virtual-keyboard {
+                max-height: 200px;
+            }
+        }
+
+        @media (max-height: 600px) {
+            .chat-container {
+                height: 55vh;
+                max-height: 350px;
+            }
+            
+            .chat-box {
+                min-height: 200px;
+            }
+        }
+
+        /* Остальные существующие стили */
+        #voice-input-btn {
+            background: #06c7e4;
+            border: 1px solid #ced4da;
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2em;
+            transition: all 0.2s ease;
+        }
+
+        #voice-input-btn:hover {
+            background: #3711cf; /*цвет кнопки микрофона*/
+            transform: scale(1.05);
+        }
+
+        #voice-input-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        #voice-input-btn.recording {
+            background: #ff4444;
+            color: white;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .pulse-dot {
+            animation: pulse 1.5s infinite;
+            display: inline-block;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+        
+        .voice-status {
+            font-size: 0.8em;
+            margin-top: 5px;
+            padding: 5px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .voice-status.error {
+            background: #ffe6e6;
+            color: #dc3545;
+            border: 1px solid #dc3545;
+        }
+
+        .voice-status.recording {
+            background: #e6ffe6;
+            color: #28a745;
+            border: 1px solid #28a745;
+        }
+
+        .voice-status.info {
+            background: #e6f3ff;
+            color: #0066cc;
+            border: 1px solid #0066cc;
+        }
+
+        /* Контекстные подсказки — с переносом и стилями */
+        .context-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 5px 0 10px;
+            padding: 0;
+        }
+        .context-suggestions button {
+            font-size: 0.85rem;
+            padding: 6px 10px;
+            background: #4a7dd5; /*   цвет фона подсказки*/
+            border: 1px solid #dee2e6; /*   цвет рамки подсказки*/
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .context-suggestions button:hover {
+            background: #0d6efd;
+            color: white;
+        }
+        /* Стиль для оценки */
+        .feedback {
+            margin: 5px 0;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        .feedback button {
+            padding: 2px 6px;
+            font-size: 0.8rem;
+            margin: 0 2px;
+            border: none;
+            background: none;
+            cursor: pointer;
+        }
+        .feedback button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        /* Стили для загрузки */
+        .text-center {
+            text-align: center;
+        }
+        .spinner-border {
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            vertical-align: text-bottom;
+            border: 0.25em solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spinner-border .75s linear infinite;
+        }
+        @keyframes spinner-border {
+            to { transform: rotate(360deg); }
+        }
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        .alert {
+            position: relative;
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid transparent;
+            border-radius: 0.25rem;
+        }
+        .alert-warning {
+            color: #856404;
+            background-color: #fff3cd;
+            border-color: #ffeeba;
+        }
+        .alert-info {
+            color: #0c5460;
+            background-color: #d1ecf1;
+            border-color: #bee5eb;
+        }
+        /* === ИКОНКИ В ЗАГОЛОВКЕ === */
+        .header-icon {
+            width: 32px;
+            height: 32px;
+            vertical-align: middle;
+            margin: 0 10px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* === УЛУЧШЕНИЯ ДЛЯ ДОСТУПНОСТИ === */
+        .message-actions {
+            margin-top: 8px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .play-audio-btn {
+            background: none;
+            border: none;
+            font-size: 1.4em;
+            cursor: pointer;
+            color: #0d6efd;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 44px;
+        }
+
+        .play-audio-btn:hover {
+            background: #f8f9fa;
+            transform: scale(1.05);
+        }
+
+        .play-audio-btn:disabled {
+            color: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        .btn-label {
+            font-size: 0.9em;
+            color: #495057;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 768px) {
+            .btn-label {
+                font-size: 0.85em;
+            }
+        }
+
+        .input-area {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        .input-area input {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        /* Стили для меню */
+         .menu-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px; /* Уменьшено с 10px */
+        justify-content: center;
+        margin: 10px 0; /* Уменьшено с 20px 0 */
+        max-height: 120px; /* Ограничиваем высоту меню */
+        overflow-y: auto; /* Добавляем прокрутку если много кнопок */
+        padding: 5px;
+    }
+
+    .menu-btn {
+        padding: 8px 12px; /* Уменьшено с 12px 20px */
+        background: #0d6efd;
+        color: white;
+        border: none;
+        border-radius: 6px; /* Уменьшено с 8px */
+        cursor: pointer;
+        font-size: 14px; /* Уменьшено с 16px */
+        transition: all 0.2s ease;
+        flex: 0 1 auto; /* Позволяет кнопкам сжиматься */
+        min-width: 120px; /* Минимальная ширина кнопок */
+    }
+
+    .menu-btn:hover {
+        background: #0b5ed7;
+        transform: translateY(-1px); /* Уменьшено с -2px */
+        }
+
+        .auto-speak-container {
+            margin: 10px 0;
+            text-align: center;
+        }
+
+        .btn-clear {
+            padding: 10px 12px;
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2em;
+            transition: all 0.2s ease;
+        }
+
+        .btn-clear:hover {
+            background: #5a6268;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Заголовок с вашими PNG-иконками -->
+        <h1>
+            <img src="/static/icons/departament.png" class="header-icon">
+            Стоматологическая поликлиника № 22
+            <img src="/static/icons/logo.png" class="header-icon">
+        </h1>
+
+        <!-- ОБЕРТКА ДЛЯ ЧАТА И КЛАВИАТУРЫ -->
+        <div class="chat-container">
+            <div id="chat" class="chat-box"></div>
+            
+            <!-- ПЕРЕКЛЮЧАТЕЛЬ ВИРТУАЛЬНОЙ КЛАВИАТУРЫ -->
+            <div class="keyboard-toggle-container">
+                <label class="keyboard-toggle-label">
+                    <input type="checkbox" id="keyboard-toggle" class="keyboard-toggle">
+                    <span class="keyboard-toggle-slider"></span>
+                    <span class="keyboard-toggle-text">Включить виртуальную клавиатуру</span>
+                </label>
+            </div>
+
+            <!-- ВИРТУАЛЬНАЯ КЛАВИАТУРЫ -->
+            <div id="virtual-keyboard" class="virtual-keyboard" style="display: none;">
+                <!-- Основная раскладка: Буквы -->
+                <div class="keyboard-row letters-layout">
+                    <button class="key-key key-symbols" data-key="symbols">?123</button>
+                    <button class="key-key" data-key="1">1</button>
+                    <button class="key-key" data-key="2">2</button>
+                    <button class="key-key" data-key="3">3</button>
+                    <button class="key-key" data-key="4">4</button>
+                    <button class="key-key" data-key="5">5</button>
+                    <button class="key-key" data-key="6">6</button>
+                    <button class="key-key" data-key="7">7</button>
+                    <button class="key-key" data-key="8">8</button>
+                    <button class="key-key" data-key="9">9</button>
+                    <button class="key-key" data-key="0">0</button>
+                    <button class="key-key key-backspace" data-key="backspace">⌫</button>
+                </div>
+
+                <div class="keyboard-row letters-layout">
+                    <button class="key-key" data-key="й">й</button>
+                    <button class="key-key" data-key="ц">ц</button>
+                    <button class="key-key" data-key="у">у</button>
+                    <button class="key-key" data-key="к">к</button>
+                    <button class="key-key" data-key="е">е</button>
+                    <button class="key-key" data-key="н">н</button>
+                    <button class="key-key" data-key="г">г</button>
+                    <button class="key-key" data-key="ш">ш</button>
+                    <button class="key-key" data-key="щ">щ</button>
+                    <button class="key-key" data-key="з">з</button>
+                    <button class="key-key" data-key="х">х</button>
+                    <button class="key-key" data-key="ъ">ъ</button>
+                </div>
+                <div class="keyboard-row letters-layout">
+                    <button class="key-key" data-key="ф">ф</button>
+                    <button class="key-key" data-key="ы">ы</button>
+                    <button class="key-key" data-key="в">в</button>
+                    <button class="key-key" data-key="а">а</button>
+                    <button class="key-key" data-key="п">п</button>
+                    <button class="key-key" data-key="р">р</button>
+                    <button class="key-key" data-key="о">о</button>
+                    <button class="key-key" data-key="л">л</button>
+                    <button class="key-key" data-key="д">д</button>
+                    <button class="key-key" data-key="ж">ж</button>
+                    <button class="key-key" data-key="э">э</button>
+                    <button class="key-key key-enter" data-key="enter">↵</button>
+                </div>
+                <div class="keyboard-row letters-layout">
+                    <button class="key-key key-shift" data-key="shift">↑</button>
+                    <button class="key-key" data-key="я">я</button>
+                    <button class="key-key" data-key="ч">ч</button>
+                    <button class="key-key" data-key="с">с</button>
+                    <button class="key-key" data-key="м">м</button>
+                    <button class="key-key" data-key="и">и</button>
+                    <button class="key-key" data-key="т">т</button>
+                    <button class="key-key" data-key="ь">ь</button>
+                    <button class="key-key" data-key="б">б</button>
+                    <button class="key-key" data-key="ю">ю</button>
+                    <button class="key-key" data-key=".">.</button>
+                    <button class="key-key key-shift" data-key="shift">↑</button>
+                </div>
+                <div class="keyboard-row letters-layout">
+                    <button class="key-key key-space" data-key=" ">Пробел</button>
+                    <button class="key-key key-clear" data-key="clear">Очистить</button>
+                </div>
+
+                <!-- Раскладка символов -->
+                <div class="keyboard-row symbols-layout" style="display: none;">
+                    <button class="key-key key-letters" data-key="letters">ABC</button>
+                    <button class="key-key" data-key="!">!</button>
+                    <button class="key-key" data-key="@">@</button>
+                    <button class="key-key" data-key="#">#</button>
+                    <button class="key-key" data-key="$">$</button>
+                    <button class="key-key" data-key="%">%</button>
+                    <button class="key-key" data-key="^">^</button>
+                    <button class="key-key" data-key="&">&</button>
+                    <button class="key-key" data-key="*">*</button>
+                    <button class="key-key" data-key="(">(</button>
+                    <button class="key-key" data-key=")">)</button>
+                    <button class="key-key key-backspace" data-key="backspace">⌫</button>
+                </div>
+                <div class="keyboard-row symbols-layout" style="display: none;">
+                    <button class="key-key" data-key="-">-</button>
+                    <button class="key-key" data-key="_">_</button>
+                    <button class="key-key" data-key="=">=</button>
+                    <button class="key-key" data-key="+">+</button>
+                    <button class="key-key" data-key="[">[</button>
+                    <button class="key-key" data-key="]">]</button>
+                    <button class="key-key" data-key="{">{</button>
+                    <button class="key-key" data-key="}">}</button>
+                    <button class="key-key" data-key="|">|</button>
+                    <button class="key-key" data-key="\\">\\</button>
+                    <button class="key-key" data-key=";">;</button>
+                    <button class="key-key" data-key=":">:</button>
+                </div>
+                <div class="keyboard-row symbols-layout" style="display: none;">
+                    <button class="key-key" data-key="'">'</button>
+                    <button class="key-key" data-key='"'>"'</button>
+                    <button class="key-key" data-key="<"><</button>
+                    <button class="key-key" data-key=">">></button>
+                    <button class="key-key" data-key=",">,</button>
+                    <button class="key-key" data-key=".">.</button>
+                    <button class="key-key" data-key="?">?</button>
+                    <button class="key-key" data-key="/">/</button>
+                    <button class="key-key" data-key="~">~</button>
+                    <button class="key-key" data-key="`">`</button>
+                    <button class="key-key" data-key="©">©</button>
+                    <button class="key-key" data-key="®">®</button>
+                </div>
+                <div class="keyboard-row symbols-layout" style="display: none;">
+                    <button class="key-key key-space" data-key=" ">Пробел</button>
+                    <button class="key-key key-clear" data-key="clear">Очистить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ОБЛАСТЬ ВВОДА - ВНЕ КОНТЕЙНЕРА ЧАТА -->
+        <div class="input-section">
+            <div class="input-area">
+                <input type="text" id="user-input" placeholder="Напишите вопрос или выберите подсказку..." autofocus>
+                <button onclick="sendQuestion()">💬 Отправить</button>
+                <button id="voice-input-btn" title="Говорите в микрофон">🎤</button>
+                <div id="recording-indicator" style="display: none; color: red; font-size: 0.8em;">
+                    <span class="pulse-dot">●</span> Запись... Говорите сейчас
+                </div>
+                <button onclick="clearChat()" class="btn-clear">🗑️ Очистить</button>
+            </div>
+            <div id="voice-status" class="voice-status"></div>
+        </div>
+
+        <!-- Динамическое меню -->
+        <div class="menu-buttons" id="menuButtons">
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Загрузка меню...</span>
+                </div>
+                <p class="mt-2">Загрузка меню...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Переключатель автоозвучки -->
+    <div class="auto-speak-container">
+        <label>
+            <input type="checkbox" id="auto-speak"> Автоматически озвучивать ответы
+        </label>
+    </div>
+
+    <!-- Ссылки внизу -->
+    <p style="text-align: center; margin-top: 15px; font-size: 14px; color: #6c757d;">
+        <a href="/admin/login" style="color: #dc3545; margin: 0 10px;">🔐 Админка</a>
+    </p>
+
+    <script>
+        let chat = null;
+        let lastQuestion = '';
+        let recognition = null;
+        let isRecording = false;
+
+        // === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ДЛЯ УПРАВЛЕНИЯ АУДИО ===
+        const audioCache = new Map();
+        let currentAudio = null;
+        let currentButtonElement = null;
+
+        // === ВИРТУАЛЬНАЯ КЛАВИАТУРА ===
+        class VirtualKeyboard {
+            constructor() {
+                this.isShift = false;
+                this.inputField = document.getElementById('user-input');
+                this.keyboard = document.getElementById('virtual-keyboard');
+                this.toggle = document.getElementById('keyboard-toggle');
+                this.currentLayout = 'letters'; // 'letters' или 'symbols'
+                this.init();
+            }
+
+            init() {
+                // Переключатель показа клавиатуры
+                this.toggle.addEventListener('change', (e) => {
+                    if (e.target.checked) {
+                        this.show();
+                    } else {
+                        this.hide();
+                    }
+                });
+
+                // Обработчики клавиш
+                this.keyboard.addEventListener('click', (e) => {
+                    const target = e.target.closest('.key-key');
+                    if (!target) return;
+
+                    const key = target.dataset.key;
+                    this.handleKeyPress(key);
+                });
+
+                // Авто-показ на мобильных при фокусе
+                this.inputField.addEventListener('focus', () => {
+                    if (window.innerWidth <= 768 && !this.toggle.checked) {
+                        this.toggle.checked = true;
+                        this.show();
+                    }
+                });
+
+                // Скрытие при клике вне клавиатуры, поля ввода и переключателя
+                document.addEventListener('click', (e) => {
+                    const clickedInside =
+                        this.keyboard.contains(e.target) ||
+                        this.inputField === e.target ||
+                        this.inputField.contains(e.target) ||
+                        this.toggle === e.target ||
+                        this.toggle.parentNode.contains(e.target);
+
+                    if (!clickedInside && this.toggle.checked) {
+                        this.toggle.checked = false;
+                        this.hide();
+                    }
+                });
+            }
+
+            handleKeyPress(key) {
+                const input = this.inputField;
+
+                switch (key) {
+                    case 'backspace':
+                        input.value = input.value.slice(0, -1);
+                        break;
+
+                    case 'enter':
+                        window.sendQuestion();
+                        break;
+
+                    case 'shift':
+                        this.toggleShift();
+                        break;
+
+                    case 'clear':
+                        input.value = '';
+                        break;
+
+                    case 'space':
+                    case ' ':
+                        input.value += ' ';
+                        break;
+
+                    case 'symbols':
+                        this.currentLayout = 'symbols';
+                        this.updateLayout();
+                        break;
+
+                    case 'letters':
+                        this.currentLayout = 'letters';
+                        this.updateLayout();
+                        break;
+
+                    default:
+                        const char = this.isShift && key.length === 1 && /[a-zа-я]/i.test(key)
+                            ? key.toUpperCase()
+                            : key;
+
+                        input.value += char;
+
+                        // Выключаем shift после одной буквы
+                        if (this.isShift && /^[a-zа-я]$/i.test(key)) {
+                            this.toggleShift();
+                        }
+                }
+
+                input.dispatchEvent(new Event('input'));
+                input.focus();
+            }
+
+            toggleShift() {
+                this.isShift = !this.isShift;
+                const shiftKeys = this.keyboard.querySelectorAll('.key-shift');
+                const letterKeys = this.keyboard.querySelectorAll('.letters-layout .key-key[data-key]:not(.key-shift):not(.key-symbols)');
+
+                shiftKeys.forEach(el => {
+                    el.style.background = this.isShift ? '#007bff' : '#6c757d';
+                });
+
+                letterKeys.forEach(el => {
+                    const k = el.dataset.key;
+                    if (k && k.length === 1 && /[а-я]/i.test(k)) {
+                        el.textContent = this.isShift ? k.toUpperCase() : k;
+                    }
+                });
+            }
+
+            updateLayout() {
+                const lettersRows = this.keyboard.querySelectorAll('.letters-layout');
+                const symbolsRows = this.keyboard.querySelectorAll('.symbols-layout');
+
+                lettersRows.forEach(row => {
+                    row.style.display = this.currentLayout === 'letters' ? 'flex' : 'none';
+                });
+                symbolsRows.forEach(row => {
+                    row.style.display = this.currentLayout === 'symbols' ? 'flex' : 'none';
+                });
+            }
+
+            show() {
+                this.keyboard.style.display = 'block';
+                this.updateLayout(); // Убедиться, что нужная раскладка активна
+                this.inputField.focus();
+                // Прокручиваем чат вниз при показе клавиатуры
+                scrollChatToBottom();
+            }
+
+            hide() {
+                this.keyboard.style.display = 'none';
+            }
+
+            sendMessage() {
+                // Используем существующую функцию отправки сообщения
+                if (window.sendQuestion) {
+                    window.sendQuestion();
+                    // Сворачиваем клавиатуру после отправки
+                    this.hide();
+                    this.toggle.checked = false;
+                } else {
+                    // Альтернативный способ, если функция глобальная
+                    const sendBtn = document.querySelector('.input-area button[onclick="sendQuestion()"]');
+                    if (sendBtn) {
+                        sendBtn.click();
+                        // Сворачиваем клавиатуру после отправки
+                        this.hide();
+                        this.toggle.checked = false;
+                    }
+                }
+            }
+        }
+
+        // Функция для автоматической прокрутки чата вниз
+        function scrollChatToBottom() {
+            if (chat) {
+                setTimeout(() => {
+                    chat.scrollTop = chat.scrollHeight;
+                }, 100);
+            }
+        }
+
+        // Инициализация
+        async function init() {
+            chat = document.getElementById('chat');
+            if (!chat) {
+                console.error("❌ Элемент 'chat' не найден!");
+                return;
+            }
+
+            loadUserPreferences();
+            addMessage('assistant', `**${getGreeting()}!**
+Рады вас видеть в **стоматологической поликлиники № 22**! 🏥
+
+Я самообучающийся виртуальный помощник на базе искусственного интелекта "Стоматолог" 2.0, готова помочь вам с информацией об услугах и записи на прием. Вы можете писать мне запросы или вводить их голосом, я буду печатать Вам ответ и воспроизводить его голосом. Для удобства, Вы можете использовать готовые ответы нажимая на кнопки расположенные в нижней части виртуального чат бота.`);
+            loadMenu();
+            initVoiceRecognition();
+
+            // Инициализация виртуальной клавиатуры
+            if (document.getElementById('virtual-keyboard')) {
+                window.virtualKeyboard = new VirtualKeyboard();
+            }
+            
+            // Автоматическое включение виртуальной клавиатуры на сенсорных устройствах
+            if ('ontouchstart' in window || navigator.maxTouchPoints) {
+                const toggle = document.getElementById('keyboard-toggle');
+                if (toggle) {
+                    toggle.checked = true;
+                    if (window.virtualKeyboard) {
+                        window.virtualKeyboard.show();
+                    }
+                }
+            }
+
+            // Обработчик клавиши Enter
+            document.getElementById('user-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendQuestion();
+                    // Сворачиваем клавиатуру после отправки
+                    if (window.virtualKeyboard) {
+                        window.virtualKeyboard.hide();
+                        document.getElementById('keyboard-toggle').checked = false;
+                    }
+                }
+            });
+        }
+
+        // === УЛУЧШЕННЫЙ ГОЛОСОВОЙ ВВОД ===
+        function initVoiceRecognition() {
+            const voiceInputBtn = document.getElementById('voice-input-btn');
+            const recordingIndicator = document.getElementById('recording-indicator');
+
+            // Проверяем поддержку Web Speech API
+            if ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                
+                // Настройки распознавания
+                recognition.continuous = false;
+                recognition.interimResults = false;
+                recognition.lang = 'ru-RU';
+                recognition.maxAlternatives = 1;
+
+                // Событие при получении результата
+                recognition.onresult = function(event) {
+                    const transcript = event.results[0][0].transcript.trim();
+                    if (transcript) {
+                        document.getElementById('user-input').value = transcript;
+                        setTimeout(() => sendQuestion(), 500);
+                    }
+                    stopVoiceRecording();
+                };
+
+                // Событие при ошибке
+                recognition.onerror = function(event) {
+                    console.error('Ошибка распознавания:', event.error);
+                    stopVoiceRecording();
+                    
+                    let errorMessage = 'Ошибка распознавания речи';
+                    switch(event.error) {
+                        case 'no-speech':
+                            errorMessage = 'Речь не распознана. Попробуйте снова.';
+                            break;
+                        case 'audio-capture':
+                            errorMessage = 'Микрофон не найден. Проверьте подключение.';
+                            break;
+                        case 'not-allowed':
+                            errorMessage = 'Доступ к микрофону запрещен. Разрешите доступ в настройках браузера.';
+                            break;
+                    }
+                    
+                    showVoiceStatus(errorMessage, 'error');
+                };
+
+                // Событие при окончании записи
+                recognition.onend = function() {
+                    if (isRecording) {
+                        stopVoiceRecording();
+                        showVoiceStatus('Запись завершена', 'info');
+                    }
+                };
+
+                // Событие при начале записи
+                recognition.onstart = function() {
+                    showVoiceStatus('Запись началась... Говорите сейчас', 'recording');
+                };
+
+                // Обработчик клика по кнопке
+                voiceInputBtn.addEventListener('click', function() {
+                    if (isRecording) {
+                        stopVoiceRecording();
+                    } else {
+                        startVoiceRecording();
+                    }
+                });
+
+                console.log('✅ Голосовой ввод инициализирован');
+                
+            } else {
+                // Браузер не поддерживает распознавание речи
+                voiceInputBtn.style.display = 'none';
+                console.warn('❌ Web Speech API не поддерживается в этом браузере');
+            }
+        }
+
+        // Функция начала записи
+        function startVoiceRecording() {
+            if (!recognition) return;
+            
+            try {
+                recognition.start();
+                isRecording = true;
+                
+                // Обновляем UI
+                document.getElementById('voice-input-btn').innerHTML = '🔴';
+                document.getElementById('voice-input-btn').title = 'Остановить запись';
+                document.getElementById('recording-indicator').style.display = 'inline';
+                document.getElementById('voice-input-btn').classList.add('recording');
+                
+                // Очищаем поле ввода для нового запроса
+                document.getElementById('user-input').value = '';
+                
+            } catch (error) {
+                console.error('Ошибка запуска записи:', error);
+                showVoiceStatus('Ошибка доступа к микрофону', 'error');
+            }
+        }
+
+        // Функция остановки записи
+        function stopVoiceRecording() {
+            if (!recognition) return;
+            
+            try {
+                recognition.stop();
+            } catch (error) {
+                // Игнорируем ошибки при остановке
+            }
+            
+            isRecording = false;
+            
+            // Обновляем UI
+            document.getElementById('voice-input-btn').innerHTML = '🎤';
+            document.getElementById('voice-input-btn').title = 'Говорите в микрофон';
+            document.getElementById('recording-indicator').style.display = 'none';
+            document.getElementById('voice-input-btn').classList.remove('recording');
+        }
+
+        // Функция показа статуса голосового ввода
+        function showVoiceStatus(message, type = 'info') {
+            const statusElement = document.getElementById('voice-status');
+            if (!statusElement) return;
+            
+            statusElement.textContent = message;
+            statusElement.className = `voice-status ${type}`;
+            
+            if (type !== 'error') {
+                setTimeout(() => {
+                    statusElement.textContent = '';
+                    statusElement.className = 'voice-status';
+                }, 3000);
+            }
+        }
+
+        // Загрузка меню - ИСПРАВЛЕННАЯ ВЕРСИЯ
+        async function loadMenu() {
+            try {
+                // Пробуем разные возможные endpoints
+                const endpoints = [
+                    '/api/menu',
+                    '/menu',
+                    '/menu-items',
+                    '/static/menu.json'
+                ];
+                
+                let response = null;
+                let data = null;
+                
+                for (const endpoint of endpoints) {
+                    try {
+                        response = await fetch(endpoint);
+                        if (response.ok) {
+                            data = await response.json();
+                            console.log('✅ Меню загружено с:', endpoint);
+                            break;
+                        }
+                    } catch (err) {
+                        console.log(`❌ Ошибка загрузки с ${endpoint}:`, err.message);
+                        continue;
+                    }
+                }
+                
+                if (!response || !response.ok) {
+                    throw new Error('Не удалось загрузить меню ни с одного endpoint');
+                }
+                
+                // Обрабатываем разные форматы ответа
+                let menuItems = [];
+                if (data.items) {
+                    menuItems = data.items; // Формат: {items: [...]}
+                } else if (Array.isArray(data)) {
+                    menuItems = data; // Формат: [...]
+                } else if (data.menu) {
+                    menuItems = data.menu; // Формат: {menu: [...]}
+                } else {
+                    menuItems = data; // Пробуем напрямую
+                }
+                
+                renderMenu(menuItems);
+                
+            } catch (error) {
+                console.error('❌ Ошибка загрузки меню:', error);
+                // Показываем тестовое меню вместо ошибки
+                showFallbackMenu();
+            }
+        }
+
+        // Функция для показа тестового меню
+        function showFallbackMenu() {
+            const fallbackMenu = [
+                { display_text: "Запись на приём", question: "Как записаться на прием к стоматологу?" },
+                { display_text: "Протезирование", question: "Какие услуги по протезированию зубов предоставляются?" },
+                { display_text: "Врачи", question: "Расскажите о врачах вашей поликлиники" },
+                { display_text: "Платное отделение", question: "Какие платные услуги предоставляются?" },
+                { display_text: "Режим работы", question: "Каков режим работы поликлиники?" },
+                { display_text: "Адрес", question: "Где находится поликлиника и как до вас добраться?" }
+            ];
+            
+            renderMenu(fallbackMenu);
+        }
+
+        // Отрисовка меню - ТОЛЬКО кнопки из menu.json
+        function renderMenu(menuItems) {
+            const menuContainer = document.getElementById('menuButtons');
+            if (!menuItems || menuItems.length === 0) {
+                menuContainer.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> Меню временно недоступно
+                    </div>
+                `;
+                return;
+            }
+            
+            let menuHTML = '';
+            menuItems.forEach(item => {
+                // Экранируем специальные символы в вопросе
+                const safeQuestion = item.question.replace(/'/g, "\\'");
+                menuHTML += `<button class="menu-btn" onclick="sendMenuQuestion('${safeQuestion}')">${item.display_text}</button>`;
+            });
+            
+            menuContainer.innerHTML = menuHTML;
+        }
+
+        // Отправка вопроса из меню
+        function sendMenuQuestion(question) {
+            document.getElementById('user-input').value = question;
+            sendQuestion();
+        }
+
+        // Приветствие
+        function getGreeting() {
+            const h = new Date().getHours();
+            return h < 6 ? "Доброй ночи" : h < 12 ? "Доброе утро" : h < 18 ? "Добрый день" : "Добрый вечер";
+        }
+
+        // Добавление сообщения - ИСПРАВЛЕННАЯ ВЕРСИЯ (прокрутка к началу)
+        function addMessage(role, text, suggestions = []) {
+            if (!chat) return;
+
+            const msg = document.createElement('div');
+            msg.className = `message ${role}`;
+            const renderedText = marked.parse(text);
+            const cleanText = stripMarkdown(text);
+
+            if (role === "assistant") {
+                msg.innerHTML = `
+                    <div class="message-text">${renderedText}</div>
+                    <div class="message-actions">
+                        <button 
+                            class="play-audio-btn" 
+                            title="Нажмите, чтобы озвучить ответ. Нажмите ещё раз, чтобы остановить."
+                            aria-label="Озвучить ответ"
+                            onclick="playAudio('${encodeURIComponent(prepareTextForTTS(cleanText))}')">
+                            ▶️ <span class="btn-label">Воспроизвести голосом</span>
+                        </button>
+                    </div>
+                `;
+            } else {
+                msg.innerHTML = `<div class="message-text">${renderedText}</div>`;
+            }
+
+            chat.appendChild(msg);
+
+            if (role === "assistant") {
+                const feedback = document.createElement('div');
+                feedback.className = "feedback";
+                feedback.innerHTML = `Был ли ответ полезен? <button onclick="rate('${lastQuestion}', 'good')">👍</button><button onclick="rate('${lastQuestion}', 'bad')">👎</button>`;
+                chat.appendChild(feedback);
+
+                // Показываем подсказки если есть
+                if (suggestions && suggestions.length > 0) {
+                    showSuggestions(suggestions);
+                }
+
+                const autoSpeakCheckbox = document.getElementById('auto-speak');
+                if (autoSpeakCheckbox && autoSpeakCheckbox.checked) {
+                    setTimeout(() => playAudio(encodeURIComponent(prepareTextForTTS(cleanText))), 500);
+                }
+            }
+
+            // === ИСПРАВЛЕННАЯ ПРОКРУТКА - К НАЧАЛУ СООБЩЕНИЯ ===
+            setTimeout(() => {
+                scrollToMessageStart(msg);
+            }, 100);
+        }
+
+        // НОВАЯ ФУНКЦИЯ для прокрутки к началу сообщения
+        function scrollToMessageStart(messageElement) {
+            if (!chat || !messageElement) return;
+            
+            // Получаем позицию сообщения относительно контейнера чата
+            const messageRect = messageElement.getBoundingClientRect();
+            const chatRect = chat.getBoundingClientRect();
+            
+            // Вычисляем позицию для прокрутки (начало сообщения минус небольшой отступ)
+            const scrollPosition = messageElement.offsetTop - chat.offsetTop - 10;
+            
+            // Прокручиваем к началу сообщения
+            chat.scrollTo({
+                top: Math.max(0, scrollPosition),
+                behavior: 'smooth'
+            });
+            
+            console.log('Прокрутка к началу сообщения:', {
+                messageTop: messageElement.offsetTop,
+                chatTop: chat.offsetTop,
+                scrollPosition: scrollPosition,
+                messageHeight: messageRect.height,
+                chatHeight: chat.clientHeight
+            });
+        }
+
+        // Показ подсказок - ИСПРАВЛЕННАЯ ВЕРСИЯ
+        function showSuggestions(suggestions) {
+            const fragment = document.createDocumentFragment();
+            
+            suggestions.forEach(suggestion => {
+                const button = document.createElement("button");
+                button.textContent = suggestion.text;
+                button.onclick = () => {
+                    if (suggestion.answer) {
+                        addMessage('assistant', suggestion.answer);
+                    } else {
+                        document.getElementById("user-input").value = suggestion.question;
+                        sendQuestion();
+                    }
+                };
+                fragment.appendChild(button);
+            });
+            
+            const contextDiv = document.createElement("div");
+            contextDiv.className = "context-suggestions";
+            contextDiv.appendChild(fragment);
+            chat.appendChild(contextDiv);
+            
+            // Прокручиваем к началу подсказок
+            setTimeout(() => {
+                scrollToMessageStart(contextDiv);
+            }, 150);
+        }
+
+        // Отправка вопроса
+        function sendQuestion() {
+            const input = document.getElementById('user-input');
+            const question = input.value.trim();
+            
+            if (!question) {
+                showVoiceStatus('Введите вопрос или используйте голосовой ввод', 'info');
+                return;
+            }
+            
+            // Показываем индикатор загрузки
+            const sendButton = document.querySelector('.input-area button');
+            const originalButtonText = sendButton.innerHTML;
+            sendButton.innerHTML = '⏳ Отправка...';
+            sendButton.disabled = true;
+            
+            lastQuestion = question;
+            addMessage('user', question);
+            input.value = '';
+            
+            // === ДОБАВЛЕНО: СВОРАЧИВАНИЕ ВИРТУАЛЬНОЙ КЛАВИАТУРЫ ПОСЛЕ ОТПРАВКИ ===
+            if (window.virtualKeyboard) {
+                window.virtualKeyboard.hide();
+                // Также снимаем галочку с переключателя
+                document.getElementById('keyboard-toggle').checked = false;
+            }
+            
+            // Используем endpoint /chat для получения подсказок
+            fetch('/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    message: question
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                addMessage('assistant', data.response, data.suggestions || []);
+            })
+            .catch(err => {
+                console.error("Ошибка запроса:", err);
+                addMessage('assistant', '🚫 Ошибка подключения. Попробуйте позже.');
+            })
+            .finally(() => {
+                // Восстанавливаем кнопку
+                sendButton.innerHTML = originalButtonText;
+                sendButton.disabled = false;
+            });
+        }
+
+        // === ФУНКЦИИ ОЗВУЧКИ ===
+        function playAudio(encodedText) {
+            const button = event.target.closest('.play-audio-btn');
+            const cleanText = decodeURIComponent(encodedText);
+
+            // Если это та же кнопка и играет — поставить на паузу
+            if (currentAudio && !currentAudio.paused && currentButtonElement === button) {
+                currentAudio.pause();
+                button.innerHTML = '▶️ <span class="btn-label">Продолжить</span>';
+                return;
+            }
+
+            // Если это та же кнопка и на паузе — продолжить воспроизведение
+            if (currentAudio && currentAudio.paused && currentButtonElement === button) {
+                currentAudio.play().catch(e => console.warn("Ошибка воспроизведения:", e));
+                button.innerHTML = '⏸️ <span class="btn-label">Пауза</span>';
+                return;
+            }
+
+            // Остановить предыдущее воспроизведение (если играет другое сообщение)
+            if (currentAudio && currentButtonElement !== button) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                if (currentButtonElement) {
+                    currentButtonElement.innerHTML = '▶️ <span class="btn-label">Воспроизвести голосом</span>';
+                }
+            }
+
+            // Из кэша
+            if (audioCache.has(cleanText)) {
+                const audio = audioCache.get(cleanText);
+                currentAudio = audio;
+                currentButtonElement = button;
+                button.innerHTML = '⏸️ <span class="btn-label">Пауза</span>';
+                audio.play().catch(e => console.warn("Ошибка воспроизведения:", e));
+                return;
+            }
+
+            // Новый аудио
+            const audio = new Audio(`/tts?text=${encodedText}`);
+            currentAudio = audio;
+            currentButtonElement = button;
+            button.disabled = true;
+            button.innerHTML = '🔄 <span class="btn-label">Загрузка...</span>';
+
+            audio.addEventListener('loadeddata', () => {
+                audioCache.set(cleanText, audio);
+                button.disabled = false;
+                button.innerHTML = '⏸️ <span class="btn-label">Пауза</span>';
+                audio.play().catch(e => console.warn("Ошибка воспроизведения:", e));
+            });
+
+            audio.addEventListener('ended', () => {
+                button.innerHTML = '▶️ <span class="btn-label">Воспроизвести голосом</span>';
+                currentAudio = null;
+                currentButtonElement = null;
+            });
+
+            audio.addEventListener('pause', () => {
+                // Обновляем кнопку только если это наша текущая кнопка
+                if (currentButtonElement === button && !audio.ended) {
+                    button.innerHTML = '▶️ <span class="btn-label">Продолжить</span>';
+                }
+            });
+
+            audio.addEventListener('play', () => {
+                if (currentButtonElement === button) {
+                    button.innerHTML = '⏸️ <span class="btn-label">Пауза</span>';
+                }
+            });
+
+            audio.addEventListener('error', (e) => {
+                console.error("Ошибка аудио:", e);
+                button.innerHTML = '❌ <span class="btn-label">Ошибка</span>';
+                setTimeout(() => {
+                    if (button.innerHTML.includes('❌')) {
+                        button.innerHTML = '▶️ <span class="btn-label">Воспроизвести голосом</span>';
+                    }
+                }, 1500);
+                currentAudio = null;
+                currentButtonElement = null;
+            });
+
+            // Если аудио уже загружено, начинаем воспроизведение
+            audio.addEventListener('canplaythrough', () => {
+                if (!audioCache.has(cleanText)) {
+                    audioCache.set(cleanText, audio);
+                }
+            });
+        }
+
+        function stripMarkdown(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '$1')
+                      .replace(/\*(.*?)\*/g, '$1')
+                      .replace(/~~(.*?)~~/g, '$1')
+                      .replace(/`(.*?)`/g, '$1')
+                      .replace(/!\[.*?\]\(.*?\)/g, '')
+                      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                      .replace(/[#>*\-+=[\]{}()|]/g, ' ')
+                      .replace(/\s+/g, ' ')
+                      .trim();
+        }
+
+        function prepareTextForTTS(text) {
+            return text
+                .replace(/(\d{2})\.(\d{2})\.(\d{4})/g, (match, day, month, year) => {
+                    const months = [
+                        '', 'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                        'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+                    ];
+                    const dayNum = parseInt(day);
+                    const dayText = convertDayToText(dayNum);
+                    const monthNum = parseInt(month);
+                    const monthName = monthNum >= 1 && monthNum <= 12 ? months[monthNum] : month;
+                    const yearText = convertYearToText(parseInt(year));
+                    return `${dayText} ${monthName} ${yearText} года`;
+                })
+                .replace(/(\d+)\.(\d+)/g, (match, p1, p2) => {
+                    if (/\d{2}\.\d{2}\.\d{4}/.test(match)) {
+                        return match;
+                    }
+                    return `${p1} точка ${p2}`;
+                })
+                .replace(/\*\*/g, '')
+                .replace(/_/g, ' ')
+                .replace(/#/g, '')
+                .replace(/\//g, ' ')
+                // === ДОБАВЛЕНА ПАУЗА МЕЖДУ АБЗАЦАМИ ===
+                .split(/\n\s*\n/)  // Разбиваем по пустым строкам
+                .join(' <break time="900ms"/> ')  // Вставляем SSML-паузу
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+        
+        function convertDayToText(day) {
+            if (day === 1) return 'первое';
+            if (day === 2) return 'второе';
+            if (day === 3) return 'третье';
+            if (day === 4) return 'четвертое';
+            if (day === 5) return 'пятое';
+            if (day === 6) return 'шестое';
+            if (day === 7) return 'седьмое';
+            if (day === 8) return 'восьмое';
+            if (day === 9) return 'девятое';
+            if (day === 10) return 'десятое';
+            if (day === 11) return 'одиннадцатое';
+            if (day === 12) return 'двенадцатое';
+            if (day === 13) return 'тринадцатое';
+            if (day === 14) return 'четырнадцатое';
+            if (day === 15) return 'пятнадцатое';
+            if (day === 16) return 'шестнадцатое';
+            if (day === 17) return 'семнадцатое';
+            if (day === 18) return 'восемнадцатое';
+            if (day === 19) return 'девятнадцатое';
+            if (day === 20) return 'двадцатое';
+            if (day === 21) return 'двадцать первое';
+            if (day === 22) return 'двадцать второе';
+            if (day === 23) return 'двадцать третье';
+            if (day === 24) return 'двадцать четвертое';
+            if (day === 25) return 'двадцать пятое';
+            if (day === 26) return 'двадцать шестое';
+            if (day === 27) return 'двадцать седьмое';
+            if (day === 28) return 'двадцать восьмое';
+            if (day === 29) return 'двадцать девятое';
+            if (day === 30) return 'тридцатое';
+            if (day === 31) return 'тридцать первое';
+            return day.toString();
+        }
+
+        function convertYearToText(year) {
+            if (year < 2000) return year.toString();
+            
+            const thousands = 'две тысячи';
+            const hundreds = year % 1000;
+            
+            if (hundreds === 0) return thousands;
+            
+            if (hundreds < 10) {
+                const units = ['', 'первого', 'второго', 'третьего', 'четвертого', 'пятого', 'шестого', 'седьмого', 'восьмого', 'девятого'];
+                return `${thousands} ${units[hundreds]}`;
+            }
+            
+            if (hundreds < 20) {
+                const teens = ['десятого', 'одиннадцатого', 'двенадцатого', 'тринадцатого', 'четырнадцатого', 'пятнадцатого', 'шестнадцатого', 'семнадцатого', 'восемнадцатого', 'девятнадцатого'];
+                return `${thousands} ${teens[hundreds - 10]}`;
+            }
+            
+            const tens = Math.floor(hundreds / 10);
+            const units = hundreds % 10;
+            
+            const tensText = [
+                '', '', 'двадцатого', 'тридцатого', 'сорокового', 'пятидесятого', 
+                'шестидесятого', 'семидесятого', 'восьмидесятого', 'девяностого'
+            ][tens];
+            
+            if (units === 0) return `${thousands} ${tensText}`;
+            
+            const unitsText = [
+                '', 'первого', 'второго', 'третьего', 'четвертого', 'пятого', 
+                'шестого', 'седьмого', 'восьмого', 'девятого'
+            ][units];
+            
+            return `${thousands} ${tensText.slice(0, -2)} ${unitsText}`;
+        }
+
+        function loadUserPreferences() {
+            const autoSpeak = document.getElementById('auto-speak');
+            if (autoSpeak) {
+                autoSpeak.checked = localStorage.getItem('autoSpeak') === 'true';
+                autoSpeak.addEventListener('change', () => {
+                    localStorage.setItem('autoSpeak', autoSpeak.checked);
+                });
+            }
+        }
+
+        // Вспомогательные функции
+        function clearChat() {
+            if (chat) chat.innerHTML = '';
+            addMessage('assistant', `Чат очищен. ${getGreeting()}! Чем могу помочь?`);
+        }
+
+        function rate(question, feedback) {
+            fetch('/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question, feedback })
+            });
+            document.querySelectorAll('.feedback button').forEach(btn => btn.disabled = true);
+        }
+
+        // Сделаем функцию отправки сообщения глобально доступной для виртуальной клавиатуры
+        window.sendQuestion = sendQuestion;
+
+        // === Инициализация ===
+        window.onload = init;
+        setInterval(loadMenu, 30000);
+        document.addEventListener('visibilitychange', () => !document.hidden && loadMenu());
+    </script>
+</body>
+</html>

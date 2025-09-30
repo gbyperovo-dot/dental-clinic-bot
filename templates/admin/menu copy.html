@@ -1,0 +1,35 @@
+<h2>🛠️ Редактирование меню</h2>
+
+<form method="POST">
+    <div class="mb-3">
+        <label>Текст кнопки (например, "🎯 Лазертаг"):</label>
+        <input type="text" name="menu-text" required class="form-control">
+    </div>
+    <div class="mb-3">
+        <label>Вопрос, который будет отправлен (например, "лазертаг"):</label>
+        <input type="text" name="menu-question" required class="form-control">
+    </div>
+    <button type="submit" class="btn btn-primary">Добавить пункт меню</button>
+</form>
+
+<h3>Список пунктов меню</h3>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Текст</th>
+            <th>Вопрос</th>
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in menu_items %}
+            <tr>
+                <td>{{ item.text }}</td>
+                <td>{{ item.question }}</td>
+                <td>
+                    <a href="/admin/menu/delete/{{ item.question }}" class="btn btn-sm btn-danger">Удалить</a>
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>

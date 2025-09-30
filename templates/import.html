@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Импорт данных</h2>
+<div class="card">
+    <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="file" class="form-label">Выберите файл (CSV или JSON)</label>
+                <input class="form-control" type="file" id="file" name="file" accept=".csv,.json" required>
+                <div class="form-text">
+                    Формат CSV: разделитель - точка с запятой (;), первая строка - заголовки<br>
+                    Формат JSON: должен быть словарем {вопрос: ответ}
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">Импортировать</button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Отмена</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

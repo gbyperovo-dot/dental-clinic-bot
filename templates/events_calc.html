@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>🎂 Калькулятор дня рождения</h1>
+<form method="POST">
+    <label>Количество гостей:</label>
+    <select name="guests" required>
+        <option value="10">До 10 человек</option>
+        <option value="20">11-20 человек (+2000₽)</option>
+        <option value="30">21-30 человек (+4000₽)</option>
+    </select>
+
+    <label>Дополнительные опции:</label>
+    <div>
+        <input type="checkbox" name="options" value="animator" id="animator">
+        <label for="animator">Аниматор (+3000₽)</label>
+    </div>
+    <!-- Другие опции -->
+
+    <button type="submit">Рассчитать</button>
+</form>
+
+{% if total %}
+<div class="result">
+    <h3>Итоговая стоимость: {{ total }}₽</h3>
+</div>
+{% endif %}
+{% endblock %}

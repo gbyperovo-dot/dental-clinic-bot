@@ -1,0 +1,42 @@
+[
+    {
+        "admin_text": "Услуги ОМС",
+        "display_text": "Услуги ОМС",
+        "question": "услуги омс",
+        "category": "oms",
+        "price_info": "",
+        "suggestion_topic": "омс"
+    },
+    {
+        "admin_text": "Запись на приём",
+        "display_text": "Запись на приём",
+        "question": "запись на приём",
+        "category": "info",
+        "price_info": "",
+        "suggestion_topic": "запись"
+    },
+     {
+        "admin_text": "Протезирование",
+        "display_text": "Протезирование",
+        "question": "Протезирование",
+        "category": "info",
+        "price_info": "",
+        "suggestion_topic": "Протезирование"
+    },
+    {
+        "admin_text": "Врачи",
+        "display_text": "Врачи",
+        "question": "Врачи",
+        "category": "info",
+        "price_info": "",
+        "suggestion_topic": "Врачи"
+    },
+    {
+        "admin_text": "Платное отделение",
+        "display_text": "Платное отделение",
+        "question": "платное отделение",
+        "category": "services",
+        "price_info": "",
+        "suggestion_topic": "платное"
+    }
+]

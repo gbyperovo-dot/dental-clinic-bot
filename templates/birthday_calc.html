@@ -1,0 +1,122 @@
+<!-- templates/birthday_calc.html -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>🧮 Калькулятор дня рождения</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .calc-container {
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .calc-container h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .calc-form {
+            margin: 20px 0;
+        }
+        .calc-form label {
+            display: block;
+            margin: 10px 0 5px;
+            font-weight: 500;
+        }
+        .calc-form input, .calc-form select, .calc-form button {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e9ecef;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .btn-send {
+            background: #28a745;
+            color: white;
+            border: none;
+            cursor: pointer;
+            padding: 10px;
+            font-size: 14px;
+            margin-top: 10px;
+        }
+        .btn-back {
+            display: inline-block;
+            margin: 20px auto;
+            padding: 10px 16px;
+            background: #6c757d;
+            color: white;
+            text-align: center;
+            text-decoration: none;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="calc-container">
+        <h2>🧮 Калькулятор дня рождения</h2>
+        <form id="calcForm" class="calc-form">
+            <label>Количество гостей:
+                <input type="number" id="guests" min="5" max="30" value="10">
+            </label>
+            <label>Пакет:
+                <select id="package">
+                    <option value="standard">Стандарт (8000 ₽)</option>
+                    <option value="extreme">Экстрим (12 000 ₽)</option>
+                    <option value="vr">VR-приключение (15 000 ₽)</option>
+                </select>
+            </label>
+            <label><input type="checkbox" id="anim"> Аниматор (+3000 ₽)</label>
+            <label><input type="checkbox" id="photo"> Фотосессия (+2000 ₽)</label>
+            <label><input type="checkbox" id="cake"> Торт (+1500 ₽)</label>
+            <button type="button" onclick="calculate()">Рассчитать</button>
+        </form>
+
+        <div class="result" id="result"></div>
+
+        <a href="/birthday" class="btn-back">← Назад</a>
+    </div>
+
+    <script>
+        function calculate() {
+            const pkg = document.getElementById("package").value;
+            const guests = parseInt(document.getElementById("guests").value) || 10;
+            const anim = document.getElementById("anim").checked;
+            const photo = document.getElementById("photo").checked;
+            const cake = document.getElementById("cake").checked;
+
+            const base = { standard: 8000, extreme: 12000, vr: 15000 }[pkg];
+            let total = base + Math.max(0, (guests - 10)) * 200;
+            if (anim) total += 3000;
+            if (photo) total += 2000;
+            if (cake) total += 1500;
+
+            document.getElementById("result").innerHTML = `
+                <strong>Итого: ${total} ₽</strong>
+                <button class="btn-send" onclick="sendToChat(${total})">Отправить в чат</button>
+            `;
+        }
+
+        function sendToChat(amount) {
+            if (window.opener && !window.opener.closed) {
+                window.opener.postMessage({ type: "birthday_calc", amount: amount }, "*");
+                window.close();
+            } else {
+                alert("Откройте этот калькулятор из чата.");
+            }
+        }
+    </script>
+</body>
+</html>

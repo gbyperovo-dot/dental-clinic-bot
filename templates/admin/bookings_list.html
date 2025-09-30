@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Список бронирований</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .bookings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+        .bookings-table th, .bookings-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .bookings-table th {
+            background: #2c3e50;
+            color: white;
+            font-weight: 600;
+        }
+        .bookings-table tr:hover {
+            background: #f1f3f5;
+        }
+        .back-link {
+            display: inline-block;
+            margin: 20px 20px 0 20px;
+            color: #007bff;
+            text-decoration: none;
+            font-size: 15px;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        .total {
+            text-align: center;
+            font-weight: bold;
+            color: #2c3e50;
+            margin: 10px 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 Список всех бронирований</h1>
+        <p class="total">Всего бронирований: <strong>{{ bookings | length }}</strong></p>
+
+        {% if bookings %}
+        <table class="bookings-table">
+            <thead>
+                <tr>
+                    <th>Имя</th>
+                    <th>Телефон</th>
+                    <th>Дата</th>
+                    <th>Гостей</th>
+                    <th>Тип события</th>
+                    <th>Создано</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td>{{ b.name }}</td>
+                    <td>{{ b.phone }}</td>
+                    <td>{{ b.date }}</td>
+                    <td>{{ b.guests }}</td>
+                    <td>{{ b.event_type }}</td>
+                    <td>{{ b.created_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="text-align: center; color: #888; padding: 20px;">📅 Пока нет ни одной брони.</p>
+        {% endif %}
+
+        <a href="/" class="back-link">← На главную</a>
+    </div>
+</body>
+</html>
