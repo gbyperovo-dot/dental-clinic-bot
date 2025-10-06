@@ -63,9 +63,6 @@ except ImportError:
     print("ℹ️  psycopg2 не установлен, используем файловую базу знаний")
 
 def get_db_connection():
-    """Создает подключение к PostgreSQL, если доступно, иначе возвращает None"""
-    if not POSTGRES_AVAILABLE:
-        return None
         
     try:
         database_url = os.getenv('DATABASE_URL')
@@ -89,7 +86,7 @@ def get_db_connection():
         return None
 
 def init_knowledge_db():
-    """Создает таблицу для базы знаний при первом запуске (только если есть DATABASE_URL)"""
+    """Создает таблицу для базы знаний с SSL подключением"""
     database_url = os.getenv('DATABASE_URL')
     if not database_url:
         print("ℹ️  DATABASE_URL не найден, используем файловую базу знаний")
