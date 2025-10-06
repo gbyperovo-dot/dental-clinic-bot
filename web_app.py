@@ -587,7 +587,76 @@ load_suggestion_map()
 load_menu()
 
 # - Маршруты -
+# ==================== ДИАГНОСТИКА POSTGRESQL ====================
 
+@app.route("/db-connection-test")
+def db_connection_test():
+    """Тест подключения к PostgreSQL"""
+    db_url = os.getenv('DATABASE_URL')
+    
+    debug_info = {
+        "DATABASE_URL_exists": bool(db_url),
+        "DATABASE_URL_preview": db_url[:50] + "..." if db_url and len(db_url) > 50 else db_url,
+        "POSTGRES_AVAILABLE": POSTGRES_AVAILABLE,
+    }
+    
+    if db_url:
+        debug_info["starts_with_postgresql"] = db_url.startswith('postgresql://')
+    
+    # Пробуем подключиться
+    try:
+        conn = get_db_connection()
+        if conn:
+            debug_info["connection"] = "success"
+            conn.close()
+        else:
+            debug_info["connection"] = "failed"
+    except Exception as e:
+        debug_info["connection"] = f"error: {str(e)}"
+    
+    return jsonify(debug_info)
+
+@app.route("/env-check")
+def env_check():
+    """Проверка переменных окружения"""
+    env_vars = {
+        "DATABASE_URL_exists": bool(os.getenv('DATABASE_URL')),
+        "FLASK_SECRET_KEY_exists": bool(os.getenv('FLASK_SECRET_KEY')),
+        "ADMIN_USER_exists": bool(os.getenv('ADMIN_USER')),
+        "POSTGRES_AVAILABLE": POSTGRES_AVAILABLE,
+        "app_url": "https://dental-clinic-bot-jx0c.onrender.com"
+    }
+    return jsonify(env_vars)
+
+@app.route("/test-postgres-write")
+def test_postgres_write():
+    """Тест записи в PostgreSQL на Render"""
+    import datetime
+    
+    test_data = {
+        "question": f"тестовый вопрос {datetime.datetime.now().isoformat()}",
+        "answer": f"тестовый ответ {datetime.datetime.now().isoformat()}"
+    }
+    
+    try:
+        result = add_knowledge_item(test_data["question"], test_data["answer"], "render_test")
+        
+        if result:
+            return jsonify({
+                "status": "success",
+                "message": "✅ Данные успешно записаны в PostgreSQL!",
+                "test_data": test_data
+            })
+        else:
+            return jsonify({"status": "error", "message": "❌ Ошибка записи"})
+            
+    except Exception as e:
+        return jsonify({
+            "status": "error", 
+            "message": f"❌ Ошибка: {str(e)}"
+        })
+
+# ==================== КОНЕЦ ДИАГНОСТИКИ ====================
 @app.route("/debug-database")
 def debug_database():
     """Диагностика базы данных"""
