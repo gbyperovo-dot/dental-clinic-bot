@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<!-- В верхней части админки -->
+<nav>
+    <a href="/admin">📊 Бронирования</a> |
+    <a href="/admin/knowledge">📚 База знаний</a> |
+    <a href="/admin/logs">📜 Логи</a> |
+    <a href="/admin/suggestions">💡 Подсказки</a> |
+    <a href="/admin/logout">🚪 Выход</a>
+</nav>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Админка — FunLand</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .admin-container {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .admin-header h1 {
+            margin: 0;
+            color: #2c3e50;
+        }
+        .logout-btn {
+            background: #dc3545;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <h1>📋 Админ-панель</h1>
+            <a href="/admin/logout"><button class="logout-btn">Выход</button></a>
+        </div>
+
+        <h2>Все бронирования ({{ bookings | length }})</h2>
+        {% if bookings %}
+        <table class="bookings-table">
+            <thead>
+                <tr>
+                    <th>Имя</th>
+                    <th>Телефон</th>
+                    <th>Дата</th>
+                    <th>Гостей</th>
+                    <th>Тип события</th>
+                    <th>Создано</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td>{{ b.name }}</td>
+                    <td>{{ b.phone }}</td>
+                    <td>{{ b.date }}</td>
+                    <td>{{ b.guests }}</td>
+                    <td>{{ b.event_type }}</td>
+                    <td>{{ b.created_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="text-align: center; color: #888;">📅 Пока нет ни одной брони.</p>
+        {% endif %}
+
+        <p style="text-align: center; margin-top: 20px;">
+            <a href="/" style="color: #007bff;">← На главную</a>
+        </p>
+    </div>
+</body>
+</html>
+<a href="/admin/knowledge" class="btn">🛠️ Редактировать базу знаний</a>
+<a href="/admin/logs" class="btn btn-info btn-sm">📜 История диалогов</a>
+<html
+<!-- Добавьте где-нибудь на страницу -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5>Быстрый доступ</h5>
+    </div>
+    <div class="card-body">
+        <a href="{{ url_for('admin_menu_categories') }}" class="btn btn-primary me-2">
+            🏷️ Управление темами
+        </a>
+        <a href="{{ url_for('admin_menu') }}" class="btn btn-secondary me-2">
+            📋 Редактирование меню
+        </a>
+    </div>
+</div>

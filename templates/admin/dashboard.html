@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Админка — FunLand</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .admin-container {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .admin-header h1 {
+            margin: 0;
+            color: #2c3e50;
+        }
+        .logout-btn {
+            background: #dc3545;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        nav {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        nav a {
+            margin: 0 10px;
+            text-decoration: none;
+            color: #007bff;
+            font-weight: 500;
+        }
+        nav a:hover {
+            text-decoration: underline;
+        }
+        .btn {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 5px;
+        }
+        .btn-info {
+            background: #17a2b8;
+        }
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 14px;
+        }
+        .card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .card-header {
+            background: #f8f9fa;
+            padding: 15px;
+            border-bottom: 1px solid #ddd;
+        }
+        .card-body {
+            padding: 15px;
+        }
+        .bookings-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .bookings-table th, .bookings-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        .bookings-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Навигация -->
+        <nav>
+            <a href="/admin">📊 Бронирования</a>
+            <a href="/admin/knowledge">📚 База знаний</a>
+            <a href="/admin/logs">📜 Логи</a>
+            <a href="/admin/suggestions">💡 Подсказки</a>
+            <a href="/admin/logout">🚪 Выход</a>
+        </nav>
+
+        <div class="admin-header">
+            <h1>📋 Админ-панель</h1>
+            <a href="/admin/logout"><button class="logout-btn">Выход</button></a>
+        </div>
+
+        <!-- Быстрый доступ -->
+        <div class="card">
+            <div class="card-header">
+                <h5>Быстрый доступ</h5>
+            </div>
+            <div class="card-body">
+                <a href="/admin/knowledge" class="btn">🛠️ Редактировать базу знаний</a>
+                <a href="/admin/logs" class="btn btn-info btn-sm">📜 История диалогов</a>
+                <a href="/admin/menu/categories" class="btn">🏷️ Управление темами</a>
+                <a href="/admin/menu" class="btn">📋 Редактирование меню</a>
+            </div>
+        </div>
+
+        <!-- Бронирования -->
+        <h2>Все бронирования ({{ bookings | length }})</h2>
+        {% if bookings %}
+        <table class="bookings-table">
+            <thead>
+                <tr>
+                    <th>Имя</th>
+                    <th>Телефон</th>
+                    <th>Дата</th>
+                    <th>Гостей</th>
+                    <th>Тип события</th>
+                    <th>Создано</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in bookings %}
+                <tr>
+                    <td>{{ b.name }}</td>
+                    <td>{{ b.phone }}</td>
+                    <td>{{ b.date }}</td>
+                    <td>{{ b.guests }}</td>
+                    <td>{{ b.event_type }}</td>
+                    <td>{{ b.created_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p style="text-align: center; color: #888;">📅 Пока нет ни одной брони.</p>
+        {% endif %}
+
+        <p style="text-align: center; margin-top: 20px;">
+            <a href="/" style="color: #007bff;">← На главную</a>
+        </p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,443 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Стоматологическая поликлиника №22 Департамента здравоохранения города Москвы</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        /* Увеличенное окно чата */
+        .chat-box {
+            height: 500px;
+            overflow-y: auto;
+            background: #fff;
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 20px;
+            width: 100%;
+            max-width: 95vw;
+            margin: 0 auto;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
+        /* Контекстные подсказки */
+        .context-suggestions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 5px 0 10px;
+            padding: 0;
+        }
+        .context-suggestions button {
+            font-size: 0.85rem;
+            padding: 6px 10px;
+            background: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .context-suggestions button:hover {
+            background: #0d6efd;
+            color: white;
+        }
+        /* Оценка ответа */
+        .feedback {
+            margin: 5px 0;
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        .feedback button {
+            padding: 2px 6px;
+            font-size: 0.8rem;
+            margin: 0 2px;
+            border: none;
+            background: none;
+            cursor: pointer;
+        }
+        .feedback button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        /* Загрузка */
+        .text-center { text-align: center; }
+        .spinner-border {
+            display: inline-block;
+            width: 2rem;
+            height: 2rem;
+            vertical-align: text-bottom;
+            border: 0.25em solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: spinner-border .75s linear infinite;
+        }
+        @keyframes spinner-border { to { transform: rotate(360deg); } }
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            white-space: nowrap;
+            border: 0;
+        }
+        .alert {
+            position: relative;
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid transparent;
+            border-radius: 0.25rem;
+        }
+        .alert-warning {
+            color: #856404;
+            background-color: #fff3cd;
+            border-color: #ffeeba;
+        }
+
+        /* === ИКОНКИ В ЗАГОЛОВКЕ === */
+        .header-icon {
+            width: 32px;
+            height: 32px;
+            vertical-align: middle;
+            margin: 0 10px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        /* === УПРАВЛЕНИЕ АУДИО === */
+        .message-actions {
+            margin-top: 8px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .play-audio-btn {
+            background: none;
+            border: none;
+            font-size: 1.4em;
+            cursor: pointer;
+            color: #0d6efd;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 44px;
+        }
+
+        .play-audio-btn:hover {
+            background: #f8f9fa;
+            transform: scale(1.05);
+        }
+
+        .btn-label {
+            font-size: 0.9em;
+            color: #495057;
+            white-space: nowrap;
+        }
+
+        @media (max-width: 768px) {
+            .btn-label {
+                font-size: 0.85em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Заголовок с вашими PNG-иконками -->
+        <h1>
+            <img src="/static/icons/departament.png" class="header-icon">
+            Стоматологическая поликлиника № 22
+            <img src="/static/icons/logo.png" class="header-icon">
+        </h1>
+
+        <div id="chat" class="chat-box"></div>
+        <div class="input-area">
+            <input type="text" id="user-input" placeholder="Напишите вопрос или выберите подсказку..." autofocus>
+            <button onclick="sendQuestion()">💬 Отправить</button>
+            <button onclick="clearChat()" class="btn-clear">🗑️ Очистить</button>
+        </div>
+
+        <!-- Меню -->
+        <div id="menuButtons" class="suggestions">
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status"></div>
+                <p class="mt-2">Загрузка меню...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Калькулятор -->
+    <div id="calcModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCalculator()">&times;</span>
+            <form id="calcForm">
+                <label>Услуга:
+                    <select id="service" onchange="updateForm()">
+                        <option value="">Выберите</option>
+                        <option value="birthday">🎉 День рождения</option>
+                    </select>
+                </label>
+                <div id="dynamicForm"></div>
+                <div id="result"></div>
+                <button type="button" onclick="calculate()">Рассчитать</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Автоозвучка -->
+    <div style="text-align: center; margin: 10px 0;">
+        <label style="font-size: 0.9em; color: #6c757d;">
+            <input type="checkbox" id="auto-speak"> Автоматически озвучивать ответы
+        </label>
+    </div>
+
+    <!-- Ссылка на админку -->
+    <p style="text-align: center; margin-top: 15px; font-size: 14px; color: #6c757d;">
+        <a href="/admin/login" style="color: #dc3545; margin: 0 10px;">🔐 Админка</a>
+    </p>
+
+    <script>
+        let chat = null;
+        let lastQuestion = '';
+
+        // Управление аудио
+        const audioCache = new Map();
+        let currentAudio = null;
+        let currentButtonElement = null;
+
+        async function init() {
+            chat = document.getElementById('chat');
+            if (!chat) return;
+
+            loadUserPreferences();
+            await loadSuggestionMap();
+            addMessage('assistant', `**${getGreeting()}!**\nРады вас видеть в **Стоматологической поликлинике №22**! 🦷`);
+            loadMenu();
+        }
+
+        async function loadMenu() {
+            try {
+                const r = await fetch('/menu-items');
+                const data = await r.json();
+                renderMenu(data.items);
+            } catch (e) {
+                console.error("Ошибка загрузки меню:", e);
+            }
+        }
+
+        function renderMenu(items) {
+            const container = document.getElementById('menuButtons');
+            container.innerHTML = '';
+            items.forEach(item => {
+                const b = document.createElement('button');
+                b.textContent = item.display_text;
+                b.onclick = () => ask(item.question);
+                container.appendChild(b);
+            });
+            container.style.display = 'flex';
+        }
+
+        function getGreeting() {
+            const h = new Date().getHours();
+            return h < 6 ? "Доброй ночи" : h < 12 ? "Доброе утро" : h < 18 ? "Добрый день" : "Добрый вечер";
+        }
+
+        function addMessage(role, text) {
+            if (!chat) return;
+            const msg = document.createElement('div');
+            msg.className = `message ${role}`;
+            const cleanText = stripMarkdown(text);
+
+            if (role === "assistant") {
+                msg.innerHTML = `
+                    <div class="message-text">${marked.parse(text)}</div>
+                    <div class="message-actions">
+                        <button 
+                            class="play-audio-btn"
+                            title="Нажмите, чтобы озвучить ответ. Нажмите ещё раз, чтобы остановить."
+                            aria-label="Озвучить ответ"
+                            onclick="playAudio('${encodeURIComponent(prepareTextForTTS(cleanText))}')">
+                            ▶️ <span class="btn-label">Воспроизвести голосом</span>
+                        </button>
+                    </div>
+                `;
+            } else {
+                msg.innerHTML = `<div class="message-text">${marked.parse(text)}</div>`;
+            }
+
+            chat.appendChild(msg);
+
+            if (role === "assistant") {
+                const fb = document.createElement('div');
+                fb.className = "feedback";
+                fb.innerHTML = `Был ли ответ полезен? <button onclick="rate('${lastQuestion}', 'good')">👍</button><button onclick="rate('${lastQuestion}', 'bad')">👎</button>`;
+                chat.appendChild(fb);
+
+                if (document.getElementById('auto-speak')?.checked) {
+                    setTimeout(() => playAudio(encodeURIComponent(prepareTextForTTS(cleanText))), 500);
+                }
+            }
+
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function sendQuestion() {
+            const input = document.getElementById('user-input');
+            const q = input.value.trim();
+            if (!q) return;
+            lastQuestion = q;
+            addMessage('user', q);
+            input.value = '';
+            fetch('/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ question: q })
+            }).then(r => r.json())
+              .then(d => addMessage('assistant', d.answer))
+              .catch(() => addMessage('assistant', '🚫 Ошибка связи.'));
+        }
+
+        function ask(q) {
+            document.getElementById('user-input').value = q;
+            sendQuestion();
+        }
+
+        let suggestionMap = {};
+        async function loadSuggestionMap() {
+            try {
+                const r = await fetch('/suggestions/all');
+                suggestionMap = (await r.json()).suggestions || {};
+            } catch (e) {
+                suggestionMap = { "default": [] };
+            }
+        }
+
+        function showSuggestionsForAnswer(a) {
+            const topic = Object.keys(suggestionMap).find(t => a.toLowerCase().includes(t));
+            if (!topic || !suggestionMap[topic]) return;
+            const frag = document.createDocumentFragment();
+            suggestionMap[topic].forEach(s => {
+                const b = document.createElement("button");
+                b.textContent = s.text;
+                b.onclick = () => addMessage('assistant', s.answer || '');
+                frag.appendChild(b);
+            });
+            const div = document.createElement("div");
+            div.className = "context-suggestions";
+            div.appendChild(frag);
+            chat.appendChild(div);
+        }
+
+        // === АУДИО ===
+
+        function playAudio(encodedText) {
+            const button = event.target;
+            const cleanText = decodeURIComponent(encodedText);
+
+            if (currentAudio && !currentAudio.paused && currentButtonElement === button) {
+                currentAudio.pause();
+                currentAudio.currentTime = 0;
+                currentAudio = null;
+                currentButtonElement = null;
+                button.innerHTML = '▶️ <span class="btn-label">Воспроизвести голосом</span>';
+                return;
+            }
+
+            if (currentAudio) {
+                currentAudio.pause();
+                if (currentButtonElement) {
+                    currentButtonElement.innerHTML = '▶️ <span class="btn-label">Воспроизвести голосом</span>';
+                }
+            }
+
+            if (audioCache.has(cleanText)) {
+                const audio = audioCache.get(cleanText);
+                audio.currentTime = 0;
+                currentAudio = audio;
+                currentButtonElement = button;
+                button.innerHTML = '⏸️ <span class="btn-label">Пауза</span>';
+                audio.play().catch(console.warn);
+                return;
+            }
+
+            const audio = new Audio(`/tts?text=${encodedText}`);
+            currentAudio = audio;
+            currentButtonElement = button;
+            button.disabled = true;
+            button.innerHTML = '🔄 <span class="btn-label">Загрузка...</span>';
+
+            audio.addEventListener('loadeddata', () => {
+                audioCache.set(cleanText, audio);
+                button.disabled = false;
+                button.innerHTML = '⏸️ <span class="btn-label">Пауза</span>';
+            });
+
+            audio.addEventListener('ended', () => {
+                button.innerHTML = '▶️ <span class="btn-label">Воспроизвести голосом</span>';
+                currentAudio = null;
+                currentButtonElement = null;
+            });
+
+            audio.addEventListener('error', () => {
+                button.innerHTML = '❌ <span class="btn-label">Ошибка</span>';
+                setTimeout(() => {
+                    if (button.innerHTML.includes('❌')) {
+                        button.innerHTML = '▶️ <span class="btn-label">Воспроизвести голосом</span>';
+                    }
+                }, 1500);
+                currentAudio = null;
+                currentButtonElement = null;
+            });
+
+            audio.play().catch(e => {
+                console.warn("Ошибка:", e);
+                button.innerHTML = '🔇 <span class="btn-label">Заблокировано</span>';
+                setTimeout(() => button.innerHTML = '▶️ <span class="btn-label">Воспроизвести голосом</span>', 2000);
+            });
+        }
+
+        function stripMarkdown(text) {
+            return text.replace(/\*\*(.*?)\*\*/g, '$1')
+                      .replace(/\*(.*?)\*/g, '$1')
+                      .replace(/~~(.*?)~~/g, '$1')
+                      .replace(/`(.*?)`/g, '$1')
+                      .replace(/!\[.*?\]\(.*?\)/g, '')
+                      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                      .replace(/[#>*\-+=[\]{}()|]/g, ' ')
+                      .replace(/\s+/g, ' ')
+                      .trim();
+        }
+
+        function prepareTextForTTS(text) {
+            return text
+                .replace(/(\d+)\.(\d+)/g, (m, p1, p2) => /\d{2}\.\d{2}\.\d{4}/.test(m) ? m : `${p1} точка ${p2}`)
+                .replace(/(\d{2})\.(\d{2})\.(\d{4})/g, (m, d, mth, y) => {
+                    const months = ['', 'января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+                    const monthName = +mth >= 1 && +mth <= 12 ? months[+mth] : mth;
+                    return `${+d} ${monthName} ${+y} года`;
+                })
+                .replace(/\*\*/g, '')
+                .replace(/_/g, ' ')
+                .replace(/#/g, '')
+                .replace(/\//g, ' ')
+                .trim();
+        }
+
+        function loadUserPreferences() {
+            const cb = document.getElementById('auto-speak');
+            if (cb) {
+                cb.checked = localStorage.getItem('autoSpeak') === 'true';
+                cb.addEventListener('change', () => localStorage.setItem('autoSpeak', cb.checked));
+            }
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>

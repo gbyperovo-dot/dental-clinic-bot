@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Управление подсказками - FunLand</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <style>
+        .admin-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        form {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .alert {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <nav>
+            <a href="/admin">📊 Бронирования</a> |
+            <a href="/admin/knowledge">📚 База знаний</a> |
+            <a href="/admin/logs">📜 Логи</a> |
+            <a href="/admin/suggestions">💡 Подсказки</a> |
+            <a href="/admin/logout">🚪 Выход</a>
+        </nav>
+
+        <h1>Управление контекстными подсказками</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <h2>Добавить новую подсказку</h2>
+        <form method="POST" action="/admin/suggestions">
+            <div>
+                <label><strong>Тема подсказки:</strong></label>
+                <input type="text" name="topic" placeholder="Например, 'vr', 'батуты'" required>
+            </div>
+            
+            <div>
+                <label><strong>Название подсказки:</strong></label>
+                <input type="text" name="suggestion-text" placeholder="Например, 'Цены', 'Игры'" required>
+            </div>
+            
+            <div>
+                <label><strong>Вопрос для отправки:</strong></label>
+                <input type="text" name="suggestion-question" placeholder="Например, 'стоимость vr'" required>
+            </div>
+            
+            <div>
+                <label><strong>Ответ подсказки:</strong></label>
+                <textarea name="suggestion-answer" placeholder="Полный ответ на вопрос..." rows="4" required></textarea>
+            </div>
+            
+            <button type="submit">Добавить подсказку</button>
+        </form>
+
+        <h2>Список подсказок</h2>
+{% if suggestion_map %}
+    <table>
+        <thead>
+            <tr>
+                <th>Тема</th>
+                <th>Название подсказки</th>
+                <th>Вопрос</th>
+                <th>Ответ</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for topic, suggestions in suggestion_map.items() %}
+                {% for suggestion in suggestions %}
+                    <tr>
+                        <td>{{ topic }}</td>
+                        <td>{{ suggestion.text }}</td>
+                        <td>{{ suggestion.question }}</td>
+                        <td>
+                            {% if suggestion.answer|length > 50 %}
+                                {{ suggestion.answer[:50] }}...
+                            {% else %}
+                                {{ suggestion.answer }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/admin/suggestions/edit/{{ topic }}/{{ suggestion.text }}" 
+                               class="btn-edit">✏️ Редактировать</a>
+                            <a href="/admin/suggestions/delete/{{ topic }}/{{ suggestion.text }}" 
+                               onclick="return confirm('Удалить эту подсказку?')" 
+                               class="btn-delete">🗑️ Удалить</a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+{% else %}
+    <p>Нет доступных подсказок</p>
+{% endif %}
+
+<!-- Форма редактирования (показывается только при редактировании) -->
+{% if edit_suggestion %}
+    <h2>Редактирование подсказки</h2>
+    <form method="POST" action="/admin/suggestions/edit/{{ edit_topic }}/{{ edit_suggestion.text }}">
+        <div>
+            <label><strong>Название подсказки:</strong></label>
+            <input type="text" name="suggestion-text" value="{{ edit_suggestion.text }}" required>
+        </div>
+        
+        <div>
+            <label><strong>Вопрос для отправки:</strong></label>
+            <input type="text" name="suggestion-question" value="{{ edit_suggestion.question }}" required>
+        </div>
+        
+        <div>
+            <label><strong>Ответ подсказки:</strong></label>
+            <textarea name="suggestion-answer" rows="4" required>{{ edit_suggestion.answer }}</textarea>
+        </div>
+        
+        <button type="submit">💾 Сохранить изменения</button>
+        <a href="/admin/suggestions" class="btn-cancel">❌ Отмена</a>
+    </form>
+{% endif %}
+    </div>
+</body>
+</html>
+<select name="topic" required>
+    <option value="">-- Выберите тему из меню --</option>
+    {% for item in menu_items %}
+        <option value="{{ item.suggestion_topic }}">{{ item.admin_text }} ({{ item.suggestion_topic }})</option>
+    {% endfor %}
+    <option value="default">default (общие подсказки)</option>
+</select>
+</html>
+<!-- В таблице подсказок добавьте колонку для ответа -->
+<table class="table">
+    <thead>
+        <tr>
+            <th>Тема</th>
+            <th>Название подсказки</th>
+            <th>Вопрос</th>
+            <th>Ответ</th>  <!-- НОВАЯ КОЛОНКА -->
+            <th>Действия</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for topic, suggestions in suggestion_map.items() %}
+        {% for suggestion in suggestions %}
+        <tr>
+            <td>{{ topic }}</td>
+            <td>{{ suggestion.text }}</td>
+            <td>{{ suggestion.question }}</td>
+            <td>{{ suggestion.answer }}</td>  <!-- ОТОБРАЖЕНИЕ ОТВЕТА -->
+            <td>
+                <!-- Форма для редактирования -->
+                <form method="POST" action="/admin/suggestions/edit/{{ topic }}/{{ suggestion.text }}">
+                    <input type="hidden" name="suggestion-question" value="{{ suggestion.question }}">
+                    <input type="hidden" name="suggestion-answer" value="{{ suggestion.answer }}">
+                    <button type="submit" class="btn btn-sm btn-primary">✏️ Редактировать</button>
+                </form>
+                <a href="/admin/suggestions/delete/{{ topic }}/{{ suggestion.text }}" class="btn btn-sm btn-danger">🗑️ Удалить</a>
+            </td>
+        </tr>
+        {% endfor %}
+        {% endfor %}
+    </tbody>
+</table>

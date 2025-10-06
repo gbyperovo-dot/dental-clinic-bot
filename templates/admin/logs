@@ -1,0 +1,13 @@
+@app.route("/admin/logs")
+def view_logs():
+    """Просмотр истории диалогов"""
+    if not session.get("admin_logged_in"):
+        return redirect(url_for("admin_login"))
+
+    logs = []
+    if os.path.exists(LOG_FILE):
+        with open(LOG_FILE, "r", encoding="utf-8") as f:
+            logs = json.load(f)
+        logs = sorted(logs, key=lambda x: x["timestamp"], reverse=True)
+
+    return render_template("admin/logs.html", logs=logs)

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-6">
+        <form action="{{ url_for('index') }}" method="get">
+            <div class="input-group">
+                <input type="text" class="form-control" name="q" value="{{ search_query }}" placeholder="Поиск...">
+                <button class="btn btn-outline-secondary" type="submit">Найти</button>
+                {% if search_query %}
+                    <a href="{{ url_for('index') }}" class="btn btn-outline-danger">Сброс</a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+    <div class="col-md-6 text-end">
+        <span class="badge bg-info">Всего вопросов: {{ total_questions }}</span>
+        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="exportData()">Экспорт</button>
+    </div>
+</div>
+
+{% if questions %}
+<div class="list-group">
+    {% for question, answer in questions.items() %}
+    <div class="list-group-item question-card">
+        <div class="d-flex justify-content-between">
+            <h5>{{ question }}</h5>
+            <div>
+                <a href="{{ url_for('edit_question', question=question) }}" class="btn btn-sm btn-warning">Редактировать</a>
+                <a href="{{ url_for('delete_question', question=question) }}" class="btn btn-sm btn-danger" 
+                   onclick="return confirm('Удалить этот вопрос?')">Удалить</a>
+            </div>
+        </div>
+        <div class="answer-content markdown-content mt-2">
+            {{ answer|markdown|safe }}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+    {% if search_query %}
+        Вопросы не найдены. Попробуйте изменить поисковый запрос.
+    {% else %}
+        База знаний пуста. Добавьте первый вопрос!
+    {% endif %}
+</div>
+{% endif %}
+
+<script>
+function exportData() {
+    fetch("{{ url_for('export_data') }}")
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                window.location.href = `/download/${data.filename}`;
+            } else {
+                alert('Ошибка при экспорте: ' + data.message);
+            }
+        });
+}
+</script>
+{% endblock %}
