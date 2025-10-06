@@ -587,6 +587,48 @@ load_suggestion_map()
 load_menu()
 
 # - Маршруты -
+@app.route("/debug-imports")
+def debug_imports():
+    """Детальная диагностика импортов"""
+    import sys
+    import subprocess
+    import pkg_resources
+    
+    debug_info = {
+        "python_version": sys.version,
+        "POSTGRES_AVAILABLE": POSTGRES_AVAILABLE
+    }
+    
+    # Проверка установленных пакетов
+    packages_to_check = ['psycopg2', 'psycopg2-binary', 'flask', 'gunicorn']
+    installed_packages = {}
+    
+    for package in packages_to_check:
+        try:
+            version = pkg_resources.get_distribution(package).version
+            installed_packages[package] = version
+        except Exception as e:
+            installed_packages[package] = f"NOT INSTALLED: {str(e)}"
+    
+    debug_info["installed_packages"] = installed_packages
+    
+    # Проверка импорта psycopg2
+    try:
+        import psycopg2
+        debug_info["psycopg2_import"] = "SUCCESS"
+        debug_info["psycopg2_version"] = psycopg2.__version__ if hasattr(psycopg2, '__version__') else "unknown"
+    except ImportError as e:
+        debug_info["psycopg2_import"] = f"FAILED: {str(e)}"
+    
+    # Проверка дополнительных импортов
+    try:
+        from psycopg2.extras import RealDictCursor
+        debug_info["RealDictCursor_import"] = "SUCCESS"
+    except ImportError as e:
+        debug_info["RealDictCursor_import"] = f"FAILED: {str(e)}"
+    
+    return jsonify(debug_info)
+
 # ==================== ДИАГНОСТИКА POSTGRESQL ====================
 
 @app.route("/db-connection-test")
