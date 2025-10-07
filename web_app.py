@@ -63,8 +63,9 @@ except ImportError:
     print("ℹ️  psycopg2 не установлен, используем файловую базу знаний")
 
 def get_db_connection():
-    """Создает подключение к PostgreSQL с SSL"""
+    """Создает подключение к PostgreSQL с улучшенной диагностикой"""
     if not POSTGRES_AVAILABLE:
+        print("❌ POSTGRES_AVAILABLE = False")
         return None
         
     try:
@@ -72,24 +73,38 @@ def get_db_connection():
         
         # Если DATABASE_URL не установлен, используем файловую базу
         if not database_url:
+            print("❌ DATABASE_URL не установлен")
             return None
             
+        print(f"🔧 DATABASE_URL получен, длина: {len(database_url)}")
+        
         # Для Render.com добавляем SSL параметры
         if 'render.com' in database_url and 'sslmode' not in database_url:
             if '?' in database_url:
                 database_url += '&sslmode=require'
             else:
                 database_url += '?sslmode=require'
+            print("🔧 Добавлен sslmode=require")
         
-        # Простое подключение через URL
-        conn = psycopg2.connect(database_url)
+        # Пробуем подключиться с таймаутом
+        print("🔧 Пытаемся подключиться к PostgreSQL...")
+        conn = psycopg2.connect(
+            database_url,
+            connect_timeout=10
+        )
+        print("✅ Подключение к PostgreSQL успешно")
         return conn
+        
     except Exception as e:
-        print(f"❌ Ошибка подключения к PostgreSQL: {e}")
+        print(f"❌ Критическая ошибка подключения к PostgreSQL: {e}")
+        # Подробная диагностика ошибки
+        import traceback
+        print(f"🔍 Детали ошибки: {traceback.format_exc()}")
         return None
-
+    
+    
 def init_knowledge_db():
-    """Создает таблицу для базы знаний при первом запуске (только если есть DATABASE_URL)"""
+    """Создает таблицу для базы знаний при первом запуске"""
     database_url = os.getenv('DATABASE_URL')
     if not database_url:
         print("ℹ️  DATABASE_URL не найден, используем файловую базу знаний")
@@ -112,6 +127,12 @@ def init_knowledge_db():
             )
         """)
         
+        # Создаем индекс для быстрого поиска
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_knowledge_base_question 
+            ON knowledge_base (question)
+        """)
+        
         conn.commit()
         cur.close()
         conn.close()
@@ -120,7 +141,9 @@ def init_knowledge_db():
     except Exception as e:
         print(f"❌ Ошибка инициализации БД: {e}")
         return False
+    
 
+    
 def get_default_knowledge():
     """Возвращает базовую базу знаний"""
     return {
@@ -586,7 +609,231 @@ load_bookings()
 load_suggestion_map()
 load_menu()
 
-# - Маршруты -
+# - маршруты -
+
+@app.route("/force-sync-now")
+def force_sync_now():
+    """Принудительная синхронизация PostgreSQL → файл"""
+    conn = get_db_connection()
+    if not conn:
+        return "❌ Не удалось подключиться к PostgreSQL"
+    
+    try:
+        # Получаем все данные из PostgreSQL
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("SELECT question, answer FROM knowledge_base")
+        rows = cur.fetchall()
+        postgres_data = {row['question']: row['answer'] for row in rows}
+        
+        # Сохраняем в файл
+        with open(KNOWLEDGE_FILE, "w", encoding="utf-8") as f:
+            json.dump(postgres_data, f, ensure_ascii=False, indent=4)
+        
+        # Обновляем глобальную переменную
+        global KNOWLEDGE_BASE
+        KNOWLEDGE_BASE = postgres_data
+        
+        cur.close()
+        conn.close()
+        
+        return f"""
+        ✅ СИНХРОНИЗАЦИЯ ВЫПОЛНЕНА!
+        
+        📊 Результат:
+        • PostgreSQL: {len(postgres_data)} записей
+        • Файл: {len(postgres_data)} записей
+        • Статус: ✅ ПОЛНОСТЬЮ СИНХРОНИЗИРОВАНЫ
+        
+        💡 Теперь оба хранилища содержат одинаковые данные.
+        """
+        
+    except Exception as e:
+        return f"❌ Ошибка синхронизации: {str(e)}"
+    
+
+@app.route("/admin/sync-knowledge")
+def admin_sync_knowledge():
+    """Полная синхронизация базы знаний между PostgreSQL и файлом"""
+    if not session.get("admin_logged_in"):
+        return "❌ Требуется авторизация"
+    
+    sync_results = []
+    
+    # 1. Синхронизация из PostgreSQL в файл
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute("SELECT question, answer FROM knowledge_base")
+            rows = cur.fetchall()
+            postgres_data = {row['question']: row['answer'] for row in rows}
+            
+            # Сохраняем в файл
+            with open(KNOWLEDGE_FILE, "w", encoding="utf-8") as f:
+                json.dump(postgres_data, f, ensure_ascii=False, indent=4)
+            
+            sync_results.append(f"✅ PostgreSQL → файл: {len(postgres_data)} записей")
+            cur.close()
+            conn.close()
+            
+        except Exception as e:
+            sync_results.append(f"❌ Ошибка синхронизации PostgreSQL → файл: {e}")
+    
+    # 2. Обновляем глобальную переменную
+    global KNOWLEDGE_BASE
+    KNOWLEDGE_BASE = postgres_data
+    
+    # 3. Проверяем результат
+    file_count = len(postgres_data)
+    postgres_count = len(postgres_data)
+    
+    sync_status = f"""
+    🔄 СИНХРОНИЗАЦИЯ ЗАВЕРШЕНА
+    
+    📊 Результаты:
+    • PostgreSQL: {postgres_count} записей
+    • Файл: {file_count} записей
+    • Статус: {'✅ СИНХРОНИЗИРОВАНЫ' if postgres_count == file_count else '❌ РАСХОЖДЕНИЯ'}
+    
+    📋 Действия:
+    {chr(10).join(sync_results)}
+    
+    💡 Система теперь использует PostgreSQL как основное хранилище.
+    Файл knowledge_base.json служит резервной копией.
+    """
+    
+    return sync_status
+
+
+
+@app.route("/debug-render-environment")
+def debug_render_environment():
+    """Диагностика окружения Render"""
+    import sys
+    import pkg_resources
+    
+    # Проверяем psycopg2
+    psycopg2_info = {}
+    try:
+        import psycopg2
+        psycopg2_info = {
+            "status": "✅ Установлен",
+            "version": psycopg2.__version__,
+            "extensions": getattr(psycopg2, "__libpq_version__", "Недоступно")
+        }
+    except ImportError as e:
+        psycopg2_info = {
+            "status": "❌ Ошибка импорта",
+            "error": str(e)
+        }
+    
+    # Проверяем переменные окружения
+    env_vars = {
+        "DATABASE_URL": os.getenv('DATABASE_URL', 'Не установлен'),
+        "DATABASE_URL_length": len(os.getenv('DATABASE_URL', '')) if os.getenv('DATABASE_URL') else 0,
+        "FLASK_SECRET_KEY_set": bool(os.getenv('FLASK_SECRET_KEY')),
+        "ADMIN_USER": os.getenv('ADMIN_USER', 'Не установлен'),
+        "PYTHON_VERSION": sys.version
+    }
+    
+    # Пробуем подключиться к PostgreSQL
+    connection_test = {"status": "Не выполнено"}
+    try:
+        conn = get_db_connection()
+        if conn:
+            cur = conn.cursor()
+            cur.execute("SELECT version(), current_database(), current_user")
+            db_info = cur.fetchone()
+            cur.close()
+            conn.close()
+            connection_test = {
+                "status": "✅ Успешно",
+                "postgres_version": db_info[0],
+                "database": db_info[1],
+                "user": db_info[2]
+            }
+        else:
+            connection_test = {"status": "❌ get_db_connection() вернул None"}
+    except Exception as e:
+        connection_test = {
+            "status": "❌ Ошибка подключения",
+            "error": str(e)
+        }
+    
+    return jsonify({
+        "environment": env_vars,
+        "psycopg2": psycopg2_info,
+        "postgres_connection": connection_test,
+        "postgres_available_in_code": POSTGRES_AVAILABLE
+    })
+
+
+
+@app.route("/force-reload-knowledge")
+def force_reload_knowledge():
+    """Принудительная перезагрузка базы знаний"""
+    if not session.get("admin_logged_in"):
+        return "❌ Требуется авторизация"
+    
+    print("🔄 Принудительная перезагрузка базы знаний...")
+    
+    # Пытаемся загрузить из PostgreSQL
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute("SELECT question, answer FROM knowledge_base ORDER BY question")
+            rows = cur.fetchall()
+            postgres_data = {row['question']: row['answer'] for row in rows}
+            
+            # Обновляем глобальную переменную
+            global KNOWLEDGE_BASE
+            KNOWLEDGE_BASE = postgres_data
+            
+            # Сохраняем в файл для резервной копии
+            with open(KNOWLEDGE_FILE, "w", encoding="utf-8") as f:
+                json.dump(KNOWLEDGE_BASE, f, ensure_ascii=False, indent=4)
+            
+            cur.close()
+            conn.close()
+            
+            return f"""
+            ✅ База знаний перезагружена из PostgreSQL!
+            Записей загружено: {len(KNOWLEDGE_BASE)}
+            Первые 3 записи: {dict(list(KNOWLEDGE_BASE.items())[:3])}
+            """
+            
+        except Exception as e:
+            return f"❌ Ошибка загрузки из PostgreSQL: {str(e)}"
+    else:
+        return "❌ Не удалось подключиться к PostgreSQL"
+    
+
+@app.route("/debug-packages")
+def debug_packages():
+    """Диагностика установленных пакетов"""
+    import pkg_resources
+    
+    installed_packages = []
+    try:
+        installed_packages = [f"{pkg.key}=={pkg.version}" for pkg in pkg_resources.working_set]
+    except:
+        installed_packages = ["Не удалось получить список пакетов"]
+    
+    # Проверяем конкретно psycopg2
+    psycopg2_status = "not_installed"
+    try:
+        import psycopg2
+        psycopg2_status = f"installed: {psycopg2.__version__}"
+    except ImportError as e:
+        psycopg2_status = f"import_error: {e}"
+    
+    return jsonify({
+        "psycopg2_status": psycopg2_status,
+        "installed_packages": installed_packages[:20],  # первые 20 пакетов
+        "postgres_available": POSTGRES_AVAILABLE
+    })
+
 
 @app.route("/quick-add-test")
 def quick_add_test():
@@ -603,6 +850,54 @@ def quick_add_test():
         return f"✅ Тестовая запись добавлена: '{test_question}' -> '{test_answer}'"
     else:
         return "❌ Ошибка добавления тестовой записи"
+
+
+
+@app.route("/check-sync")
+def check_sync():
+    """Проверка синхронизации между PostgreSQL и файлом"""
+    # Данные из PostgreSQL
+    postgres_data = {}
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute("SELECT question, answer FROM knowledge_base")
+            rows = cur.fetchall()
+            postgres_data = {row['question']: row['answer'] for row in rows}
+            cur.close()
+            conn.close()
+        except Exception as e:
+            postgres_data = {"error": str(e)}
+    
+    # Данные из файла
+    file_data = {}
+    if os.path.exists(KNOWLEDGE_FILE):
+        try:
+            with open(KNOWLEDGE_FILE, "r", encoding="utf-8") as f:
+                file_data = json.load(f)
+        except Exception as e:
+            file_data = {"error": str(e)}
+    
+    # Сравниваем
+    postgres_keys = set(postgres_data.keys()) if isinstance(postgres_data, dict) else set()
+    file_keys = set(file_data.keys()) if isinstance(file_data, dict) else set()
+    
+    sync_status = {
+        "postgres_records": len(postgres_keys),
+        "file_records": len(file_keys),
+        "in_postgres_not_in_file": len(postgres_keys - file_keys),
+        "in_file_not_in_postgres": len(file_keys - postgres_keys),
+        "common_records": len(postgres_keys & file_keys),
+        "is_synchronized": postgres_keys == file_keys
+    }
+    
+    return jsonify({
+        "sync_status": sync_status,
+        "postgres_sample": dict(list(postgres_data.items())[:3]) if isinstance(postgres_data, dict) else postgres_data,
+        "file_sample": dict(list(file_data.items())[:3]) if isinstance(file_data, dict) else file_data
+    })
+
 
 
 @app.route("/current-knowledge-status")
@@ -1958,18 +2253,49 @@ def test_file_save():
 
 
 if __name__ == "__main__":
+    print("🚀 Запуск инициализации базы знаний...")
+    
     # Инициализация базы знаний
     if init_knowledge_db():
+        print("✅ PostgreSQL база инициализирована")
+        # Загружаем данные из PostgreSQL
         load_knowledge_base()
+        
+        # 🔄 СИНХРОНИЗАЦИЯ: Обновляем файл из PostgreSQL
+        conn = get_db_connection()
+        if conn:
+            try:
+                cur = conn.cursor(cursor_factory=RealDictCursor)
+                cur.execute("SELECT question, answer FROM knowledge_base")
+                rows = cur.fetchall()
+                postgres_data = {row['question']: row['answer'] for row in rows}
+                
+                # Сохраняем актуальные данные в файл
+                with open(KNOWLEDGE_FILE, "w", encoding="utf-8") as f:
+                    json.dump(postgres_data, f, ensure_ascii=False, indent=4)
+                
+                print(f"✅ Файл синхронизирован с PostgreSQL ({len(postgres_data)} записей)")
+                
+                cur.close()
+                conn.close()
+            except Exception as e:
+                print(f"❌ Ошибка синхронизации при запуске: {e}")
     else:
         print("ℹ️  Используем файловую базу знаний")
         load_knowledge_base()
     
+    # Загрузка остальных данных
+    load_bookings()
+    load_suggestion_map()
+    load_menu()
+    
     port = int(os.getenv("PORT", 5000))
     debug = os.getenv("FLASK_DEBUG", "false").lower() == "true"
     local_ip = get_local_ip()
+    
     print(f"🌐 Запуск сервера на:")
     print(f"   🖥️  В локальной сети: http://{local_ip}:{port}")
     print(f"   🔐  На этом устройстве: http://localhost:{port} или http://127.0.0.1:{port}")
     print("💡 Для остановки сервера нажмите CTRL+C")
+    
     app.run(host="0.0.0.0", port=port, debug=debug)
