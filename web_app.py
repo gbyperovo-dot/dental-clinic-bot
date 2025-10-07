@@ -60,12 +60,14 @@ try:
     POSTGRES_AVAILABLE = True
 except ImportError:
     POSTGRES_AVAILABLE = False
+    
     print("ℹ️  psycopg2 не установлен, используем файловую базу знаний")
-  # Принудительно используем файловую базу на Render
 
+    # Принудительно используем файловую базу на Render
 if 'render.com' in os.getenv('RENDER_EXTERNAL_URL', '') or os.getenv('RENDER'):
     POSTGRES_AVAILABLE = False
     print("🔧 Режим Render: используем файловую базу знаний")
+
 
 def get_db_connection():
     """Создает подключение к PostgreSQL с SSL"""
@@ -138,42 +140,26 @@ def get_default_knowledge():
     }
 
 def load_knowledge_base():
-    """Загружает базу знаний из PostgreSQL или файла"""
+    """Загружает базу знаний из файла (только файловый режим на Render)"""
     global KNOWLEDGE_BASE
     
-    # Пытаемся загрузить из PostgreSQL
-    conn = get_db_connection()
-    if conn:
-        try:
-            cur = conn.cursor(cursor_factory=RealDictCursor)
-            cur.execute("SELECT question, answer FROM knowledge_base ORDER BY question")
-            rows = cur.fetchall()
-            KNOWLEDGE_BASE = {row['question']: row['answer'] for row in rows}
-            print(f"✅ База знаний загружена из PostgreSQL ({len(KNOWLEDGE_BASE)} записей)")
-            cur.close()
-            conn.close()
-            return
-        except Exception as e:
-            print(f"❌ Ошибка загрузки из PostgreSQL: {e}")
-    
-    # Если PostgreSQL недоступен, загружаем из файла
-    if os.path.exists(KNOWLEDGE_FILE):
-        try:
-            with open(KNOWLEDGE_FILE, "r", encoding="utf-8") as f:
-                KNOWLEDGE_BASE = json.load(f)
-            print(f"✅ База знаний загружена из файла ({len(KNOWLEDGE_BASE)} записей)")
-        except Exception as e:
-            print(f"❌ Ошибка загрузки из файла: {e}")
+    # Всегда используем файловую базу на Render
+    if os.getenv('RENDER') or 'render.com' in os.getenv('RENDER_EXTERNAL_URL', ''):
+        print("🔧 Render: используем файловую базу знаний")
+        if os.path.exists(KNOWLEDGE_FILE):
+            try:
+                with open(KNOWLEDGE_FILE, "r", encoding="utf-8") as f:
+                    KNOWLEDGE_BASE = json.load(f)
+                print(f"✅ База знаний загружена из файла ({len(KNOWLEDGE_BASE)} записей)")
+            except Exception as e:
+                print(f"❌ Ошибка загрузки из файла: {e}")
+                KNOWLEDGE_BASE = get_default_knowledge()
+        else:
             KNOWLEDGE_BASE = get_default_knowledge()
-    else:
-        KNOWLEDGE_BASE = get_default_knowledge()
-        # Сохраняем дефолтную базу в файл
-        try:
-            with open(KNOWLEDGE_FILE, "w", encoding="utf-8") as f:
-                json.dump(KNOWLEDGE_BASE, f, ensure_ascii=False, indent=4)
-            print("✅ Создана файловая база знаний по умолчанию")
-        except Exception as e:
-            print(f"❌ Ошибка создания файла: {e}")
+            save_knowledge_base()
+        return
+    
+    # ... остальной оригинальный код для локального использования ...
 
 def save_knowledge_base():
     """Сохраняет базу знаний в PostgreSQL или файл"""
