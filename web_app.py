@@ -63,22 +63,28 @@ except ImportError:
     print("ℹ️  psycopg2 не установлен, используем файловую базу знаний")
 
 def get_db_connection():
+    """Создает подключение к PostgreSQL с SSL"""
+    if not POSTGRES_AVAILABLE:
+        return None
         
     try:
         database_url = os.getenv('DATABASE_URL')
         
-        # Если DATABASE_URL не установлен, используем файловую базу
         if not database_url:
             return None
             
         # Парсим URL для Render
         url = urlparse.urlparse(database_url)
+        
+        # Подключение с SSL для Render
         conn = psycopg2.connect(
             database=url.path[1:],
             user=url.username,
             password=url.password,
             host=url.hostname,
-            port=url.port
+            port=url.port,
+            sslmode='require',  # 🔥 Ключевое изменение
+            sslrootcert=''      # Пустая строка для автоматического определения
         )
         return conn
     except Exception as e:
@@ -86,7 +92,7 @@ def get_db_connection():
         return None
 
 def init_knowledge_db():
-    """Создает таблицу для базы знаний с SSL подключением"""
+    """Создает таблицу для базы знаний при первом запуске (только если есть DATABASE_URL)"""
     database_url = os.getenv('DATABASE_URL')
     if not database_url:
         print("ℹ️  DATABASE_URL не найден, используем файловую базу знаний")
@@ -584,142 +590,6 @@ load_suggestion_map()
 load_menu()
 
 # - Маршруты -
-# ==================== ДИАГНОСТИКА POSTGRESQL ====================
-
-@app.route("/db-connection-test")
-def db_connection_test():
-    """Тест подключения к PostgreSQL"""
-    db_url = os.getenv('DATABASE_URL')
-    
-    debug_info = {
-        "DATABASE_URL_exists": bool(db_url),
-        "DATABASE_URL_preview": db_url[:50] + "..." if db_url and len(db_url) > 50 else db_url,
-        "POSTGRES_AVAILABLE": POSTGRES_AVAILABLE,
-    }
-    
-    if db_url:
-        debug_info["starts_with_postgresql"] = db_url.startswith('postgresql://')
-    
-    # Пробуем подключиться
-    try:
-        conn = get_db_connection()
-        if conn:
-            debug_info["connection"] = "success"
-            conn.close()
-        else:
-            debug_info["connection"] = "failed"
-    except Exception as e:
-        debug_info["connection"] = f"error: {str(e)}"
-    
-    return jsonify(debug_info)
-
-@app.route("/env-check")
-def env_check():
-    """Проверка переменных окружения"""
-    env_vars = {
-        "DATABASE_URL_exists": bool(os.getenv('DATABASE_URL')),
-        "FLASK_SECRET_KEY_exists": bool(os.getenv('FLASK_SECRET_KEY')),
-        "ADMIN_USER_exists": bool(os.getenv('ADMIN_USER')),
-        "POSTGRES_AVAILABLE": POSTGRES_AVAILABLE,
-        "app_url": "https://dental-clinic-bot-jx0c.onrender.com"
-    }
-    return jsonify(env_vars)
-
-@app.route("/test-postgres-write")
-def test_postgres_write():
-    """Тест записи в PostgreSQL на Render"""
-    import datetime
-    
-    test_data = {
-        "question": f"тестовый вопрос {datetime.datetime.now().isoformat()}",
-        "answer": f"тестовый ответ {datetime.datetime.now().isoformat()}"
-    }
-    
-    try:
-        result = add_knowledge_item(test_data["question"], test_data["answer"], "render_test")
-        
-        if result:
-            return jsonify({
-                "status": "success",
-                "message": "✅ Данные успешно записаны в PostgreSQL!",
-                "test_data": test_data
-            })
-        else:
-            return jsonify({"status": "error", "message": "❌ Ошибка записи"})
-            
-    except Exception as e:
-        return jsonify({
-            "status": "error", 
-            "message": f"❌ Ошибка: {str(e)}"
-        })
-
-# ==================== КОНЕЦ ДИАГНОСТИКИ ====================
-
-
-@app.route("/debug-imports")
-def debug_imports():
-    """Детальная диагностика импортов"""
-    import sys
-    
-    debug_info = {
-        "python_version": sys.version,
-        "POSTGRES_AVAILABLE": POSTGRES_AVAILABLE
-    }
-    
-    # Проверка импорта psycopg2
-    try:
-        import psycopg2
-        debug_info["psycopg2_import"] = "SUCCESS"
-        debug_info["psycopg2_version"] = psycopg2.__version__ if hasattr(psycopg2, '__version__') else "unknown"
-    except ImportError as e:
-        debug_info["psycopg2_import"] = f"FAILED: {str(e)}"
-    
-    # Проверка дополнительных импортов
-    try:
-        from psycopg2.extras import RealDictCursor
-        debug_info["RealDictCursor_import"] = "SUCCESS"
-    except ImportError as e:
-        debug_info["RealDictCursor_import"] = f"FAILED: {str(e)}"
-    
-    # Простая проверка установленных пакетов
-    try:
-        import pkg_resources
-        packages_to_check = ['psycopg2', 'psycopg2-binary', 'flask']
-        installed_packages = {}
-        
-        for package in packages_to_check:
-            try:
-                version = pkg_resources.get_distribution(package).version
-                installed_packages[package] = version
-            except:
-                installed_packages[package] = "NOT INSTALLED"
-        
-        debug_info["installed_packages"] = installed_packages
-    except:
-        debug_info["installed_packages"] = "pkg_resources not available"
-    
-    return jsonify(debug_info)
-
-@app.route("/simple-import-test")
-def simple_import_test():
-    """Простой тест импорта psycopg2"""
-    try:
-        import psycopg2
-        result = "✅ psycopg2 импортирован успешно"
-        
-        # Попробуем подключиться к базе
-        conn = get_db_connection()
-        if conn:
-            conn.close()
-            result += " ✅ Подключение к PostgreSQL работает"
-        else:
-            result += " ❌ Нет подключения к PostgreSQL"
-            
-    except ImportError as e:
-        result = f"❌ Ошибка импорта psycopg2: {str(e)}"
-    
-    return result
-
 
 @app.route("/debug-database")
 def debug_database():
