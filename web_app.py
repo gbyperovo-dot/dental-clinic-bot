@@ -60,14 +60,7 @@ try:
     POSTGRES_AVAILABLE = True
 except ImportError:
     POSTGRES_AVAILABLE = False
-    
     print("ℹ️  psycopg2 не установлен, используем файловую базу знаний")
-
-    # Принудительно используем файловую базу на Render
-if 'render.com' in os.getenv('RENDER_EXTERNAL_URL', '') or os.getenv('RENDER'):
-    POSTGRES_AVAILABLE = False
-    print("🔧 Режим Render: используем файловую базу знаний")
-
 
 def get_db_connection():
     """Создает подключение к PostgreSQL с SSL"""
@@ -77,22 +70,19 @@ def get_db_connection():
     try:
         database_url = os.getenv('DATABASE_URL')
         
+        # Если DATABASE_URL не установлен, используем файловую базу
         if not database_url:
             return None
             
-        # Парсим URL для Render
-        url = urlparse.urlparse(database_url)
+        # Для Render.com добавляем SSL параметры
+        if 'render.com' in database_url and 'sslmode' not in database_url:
+            if '?' in database_url:
+                database_url += '&sslmode=require'
+            else:
+                database_url += '?sslmode=require'
         
-        # Подключение с SSL для Render
-        conn = psycopg2.connect(
-            database=url.path[1:],
-            user=url.username,
-            password=url.password,
-            host=url.hostname,
-            port=url.port,
-            sslmode='require',  # 🔥 Ключевое изменение
-            sslrootcert=''      # Пустая строка для автоматического определения
-        )
+        # Простое подключение через URL
+        conn = psycopg2.connect(database_url)
         return conn
     except Exception as e:
         print(f"❌ Ошибка подключения к PostgreSQL: {e}")
@@ -140,26 +130,42 @@ def get_default_knowledge():
     }
 
 def load_knowledge_base():
-    """Загружает базу знаний из файла (только файловый режим на Render)"""
+    """Загружает базу знаний из PostgreSQL или файла"""
     global KNOWLEDGE_BASE
     
-    # Всегда используем файловую базу на Render
-    if os.getenv('RENDER') or 'render.com' in os.getenv('RENDER_EXTERNAL_URL', ''):
-        print("🔧 Render: используем файловую базу знаний")
-        if os.path.exists(KNOWLEDGE_FILE):
-            try:
-                with open(KNOWLEDGE_FILE, "r", encoding="utf-8") as f:
-                    KNOWLEDGE_BASE = json.load(f)
-                print(f"✅ База знаний загружена из файла ({len(KNOWLEDGE_BASE)} записей)")
-            except Exception as e:
-                print(f"❌ Ошибка загрузки из файла: {e}")
-                KNOWLEDGE_BASE = get_default_knowledge()
-        else:
-            KNOWLEDGE_BASE = get_default_knowledge()
-            save_knowledge_base()
-        return
+    # Пытаемся загрузить из PostgreSQL
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute("SELECT question, answer FROM knowledge_base ORDER BY question")
+            rows = cur.fetchall()
+            KNOWLEDGE_BASE = {row['question']: row['answer'] for row in rows}
+            print(f"✅ База знаний загружена из PostgreSQL ({len(KNOWLEDGE_BASE)} записей)")
+            cur.close()
+            conn.close()
+            return
+        except Exception as e:
+            print(f"❌ Ошибка загрузки из PostgreSQL: {e}")
     
-    # ... остальной оригинальный код для локального использования ...
+    # Если PostgreSQL недоступен, загружаем из файла
+    if os.path.exists(KNOWLEDGE_FILE):
+        try:
+            with open(KNOWLEDGE_FILE, "r", encoding="utf-8") as f:
+                KNOWLEDGE_BASE = json.load(f)
+            print(f"✅ База знаний загружена из файла ({len(KNOWLEDGE_BASE)} записей)")
+        except Exception as e:
+            print(f"❌ Ошибка загрузки из файла: {e}")
+            KNOWLEDGE_BASE = get_default_knowledge()
+    else:
+        KNOWLEDGE_BASE = get_default_knowledge()
+        # Сохраняем дефолтную базу в файл
+        try:
+            with open(KNOWLEDGE_FILE, "w", encoding="utf-8") as f:
+                json.dump(KNOWLEDGE_BASE, f, ensure_ascii=False, indent=4)
+            print("✅ Создана файловая база знаний по умолчанию")
+        except Exception as e:
+            print(f"❌ Ошибка создания файла: {e}")
 
 def save_knowledge_base():
     """Сохраняет базу знаний в PostgreSQL или файл"""
@@ -582,46 +588,61 @@ load_menu()
 
 # - Маршруты -
 
-@app.route("/debug-import")
-def debug_import():
-    """Диагностика импорта psycopg2"""
-    import sys
-    import pkg_resources
+@app.route("/quick-add-test")
+def quick_add_test():
+    """Быстрое добавление тестовой записи через систему"""
+    if not session.get("admin_logged_in"):
+        return "❌ Требуется авторизация"
     
-    result = {
-        "python_version": sys.version,
-        "installed_packages": [],
-        "psycopg2_import_error": None
-    }
+    test_question = f"тест_вопрос_{int(time.time())}"
+    test_answer = f"Тестовый ответ {datetime.now().strftime('%H:%M:%S')}"
     
-    # Проверяем установленные пакеты
-    try:
-        installed_packages = [pkg.key for pkg in pkg_resources.working_set]
-        result["installed_packages"] = [pkg for pkg in installed_packages if 'psycopg' in pkg or 'flask' in pkg]
-    except Exception as e:
-        result["package_check_error"] = str(e)
+    success = add_knowledge_item(test_question, test_answer, "test_admin")
     
-    # Проверяем импорт psycopg2
-    try:
-        import psycopg2
-        result["psycopg2_import"] = "✅ Успешно"
-        result["psycopg2_version"] = psycopg2.__version__
-    except ImportError as e:
-        result["psycopg2_import"] = "❌ Ошибка"
-        result["psycopg2_import_error"] = str(e)
+    if success:
+        return f"✅ Тестовая запись добавлена: '{test_question}' -> '{test_answer}'"
+    else:
+        return "❌ Ошибка добавления тестовой записи"
+
+
+@app.route("/current-knowledge-status")
+def current_knowledge_status():
+    """Показывает текущее состояние базы знаний"""
+    # Загружаем актуальные данные
+    load_knowledge_base()
     
-    # Проверяем подключение к БД
-    try:
-        conn = get_db_connection()
-        if conn:
-            result["database_connection"] = "✅ Успешно"
+    # Получаем данные из PostgreSQL
+    postgres_data = {}
+    conn = get_db_connection()
+    if conn:
+        try:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute("SELECT question, answer FROM knowledge_base")
+            rows = cur.fetchall()
+            postgres_data = {row['question']: row['answer'] for row in rows}
+            cur.close()
             conn.close()
-        else:
-            result["database_connection"] = "❌ Не подключено"
-    except Exception as e:
-        result["database_connection"] = f"❌ Ошибка: {str(e)}"
+        except Exception as e:
+            postgres_data = {"error": str(e)}
     
-    return jsonify(result)
+    # Получаем данные из файла
+    file_data = {}
+    if os.path.exists(KNOWLEDGE_FILE):
+        try:
+            with open(KNOWLEDGE_FILE, "r", encoding="utf-8") as f:
+                file_data = json.load(f)
+        except Exception as e:
+            file_data = {"error": str(e)}
+    
+    return jsonify({
+        "postgres_records": len(postgres_data) if isinstance(postgres_data, dict) else "error",
+        "file_records": len(file_data) if isinstance(file_data, dict) else "error",
+        "memory_records": len(KNOWLEDGE_BASE),
+        "postgres_sample": dict(list(postgres_data.items())[:3]) if isinstance(postgres_data, dict) else postgres_data,
+        "file_sample": dict(list(file_data.items())[:3]) if isinstance(file_data, dict) else file_data,
+        "memory_sample": dict(list(KNOWLEDGE_BASE.items())[:3])
+    })
+
 
 @app.route("/debug-database")
 def debug_database():
@@ -1853,6 +1874,87 @@ def import_knowledge():
         
     except Exception as e:
         return jsonify({"success": False, "error": f"Ошибка импорта: {str(e)}"})
+
+@app.route("/test-database")
+def test_database():
+    """Тестирование работы PostgreSQL базы данных"""
+    try:
+        # Проверяем подключение
+        conn = get_db_connection()
+        if not conn:
+            return jsonify({"status": "error", "message": "❌ Не удалось подключиться к PostgreSQL"})
+        
+        # Проверяем таблицу
+        cur = conn.cursor()
+        cur.execute("SELECT COUNT(*) FROM knowledge_base")
+        count = cur.fetchone()[0]
+        
+        # Пробуем добавить тестовую запись
+        test_question = f"тестовый_вопрос_{int(time.time())}"
+        test_answer = "Это тестовый ответ для проверки базы данных"
+        
+        cur.execute("""
+            INSERT INTO knowledge_base (question, answer, created_by) 
+            VALUES (%s, %s, %s)
+            ON CONFLICT (question) 
+            DO UPDATE SET answer = EXCLUDED.answer
+        """, (test_question, test_answer, "test_user"))
+        
+        conn.commit()
+        
+        # Проверяем, что запись добавилась
+        cur.execute("SELECT question, answer FROM knowledge_base WHERE question = %s", (test_question,))
+        result = cur.fetchone()
+        
+        cur.close()
+        conn.close()
+        
+        if result:
+            return jsonify({
+                "status": "success", 
+                "message": "✅ PostgreSQL работает корректно",
+                "test_record": {
+                    "question": result[0],
+                    "answer": result[1]
+                },
+                "total_records": count
+            })
+        else:
+            return jsonify({"status": "error", "message": "❌ Тестовая запись не сохранилась"})
+            
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"❌ Ошибка PostgreSQL: {str(e)}"})
+
+@app.route("/test-file-save")
+def test_file_save():
+    """Тестирование сохранения в файл"""
+    try:
+        # Создаем тестовые данные
+        test_data = {
+            "тестовый_вопрос_файл": "Это тестовый ответ в файле",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Сохраняем в файл
+        with open("test_knowledge.json", "w", encoding="utf-8") as f:
+            json.dump(test_data, f, ensure_ascii=False, indent=4)
+        
+        # Проверяем, что файл создался
+        if os.path.exists("test_knowledge.json"):
+            with open("test_knowledge.json", "r", encoding="utf-8") as f:
+                loaded_data = json.load(f)
+            
+            return jsonify({
+                "status": "success", 
+                "message": "✅ Файловая система работает",
+                "saved_data": loaded_data
+            })
+        else:
+            return jsonify({"status": "error", "message": "❌ Файл не создался"})
+            
+    except Exception as e:
+        return jsonify({"status": "error", "message": f"❌ Ошибка файловой системы: {str(e)}"})
+
 
 
 if __name__ == "__main__":
