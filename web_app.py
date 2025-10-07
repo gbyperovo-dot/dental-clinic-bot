@@ -61,6 +61,11 @@ try:
 except ImportError:
     POSTGRES_AVAILABLE = False
     print("ℹ️  psycopg2 не установлен, используем файловую базу знаний")
+  # Принудительно используем файловую базу на Render
+
+if 'render.com' in os.getenv('RENDER_EXTERNAL_URL', '') or os.getenv('RENDER'):
+    POSTGRES_AVAILABLE = False
+    print("🔧 Режим Render: используем файловую базу знаний")
 
 def get_db_connection():
     """Создает подключение к PostgreSQL с SSL"""
