@@ -13,18 +13,6 @@ import re
 import functools
 from urllib.parse import unquote, quote
 
-# ПРИНУДИТЕЛЬНОЕ ВКЛЮЧЕНИЕ POSTGRESQL ДЛЯ RENDER
-import os
-if os.getenv('RENDER'):
-    print("🚨 RENDER DETECTED - FORCING POSTGRESQL")
-    try:
-        import psycopg2
-        from psycopg2.extras import RealDictCursor
-        POSTGRES_AVAILABLE = True
-        print("✅ PostgreSQL принудительно включен для Render")
-    except ImportError as e:
-        print(f"❌ Не удалось импортировать psycopg2 на Render: {e}")
-        POSTGRES_AVAILABLE = False
 
 # - Настройка логирования -
 logging.basicConfig(filename='audit.log',
