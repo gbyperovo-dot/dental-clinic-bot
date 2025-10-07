@@ -13,6 +13,19 @@ import re
 import functools
 from urllib.parse import unquote, quote
 
+# ПРИНУДИТЕЛЬНОЕ ВКЛЮЧЕНИЕ POSTGRESQL ДЛЯ RENDER
+import os
+if os.getenv('RENDER'):
+    print("🚨 RENDER DETECTED - FORCING POSTGRESQL")
+    try:
+        import psycopg2
+        from psycopg2.extras import RealDictCursor
+        POSTGRES_AVAILABLE = True
+        print("✅ PostgreSQL принудительно включен для Render")
+    except ImportError as e:
+        print(f"❌ Не удалось импортировать psycopg2 на Render: {e}")
+        POSTGRES_AVAILABLE = False
+
 # - Настройка логирования -
 logging.basicConfig(filename='audit.log',
                     level=logging.INFO,
@@ -53,14 +66,16 @@ suggestionMap = {}
 MENU_CACHE = None
 
 # --- Умная система базы знаний: PostgreSQL или файловая ---
+# --- Умная система базы знаний: PostgreSQL или файловая ---
 try:
     import psycopg2
     from psycopg2.extras import RealDictCursor
     import urllib.parse as urlparse
     POSTGRES_AVAILABLE = True
-except ImportError:
+    print("✅ psycopg2 доступен")
+except ImportError as e:
     POSTGRES_AVAILABLE = False
-    print("ℹ️  psycopg2 не установлен, используем файловую базу знаний")
+    print(f"ℹ️  psycopg2 не установлен: {e}, используем файловую базу знаний")
 
 def get_db_connection():
     """Создает подключение к PostgreSQL с улучшенной диагностикой"""
@@ -610,6 +625,40 @@ load_suggestion_map()
 load_menu()
 
 # - маршруты -
+@app.route("/render-debug")
+def render_debug():
+    """Диагностика окружения Render"""
+    import sys
+    import pkg_resources
+    
+    # Проверяем установленные пакеты
+    packages = []
+    try:
+        packages = [f"{pkg.key}=={pkg.version}" for pkg in pkg_resources.working_set if 'psycopg' in pkg.key.lower()]
+    except:
+        packages = ["Ошибка получения списка пакетов"]
+    
+    # Проверяем psycopg2
+    psycopg2_status = "not_checked"
+    try:
+        import psycopg2
+        psycopg2_status = f"available: {psycopg2.__version__}"
+    except ImportError as e:
+        psycopg2_status = f"import_error: {e}"
+    
+    return jsonify({
+        "python_version": sys.version,
+        "psycopg2_status": psycopg2_status,
+        "postgres_available_in_code": POSTGRES_AVAILABLE,
+        "database_url_set": bool(os.getenv('DATABASE_URL')),
+        "installed_psycopg_packages": packages,
+        "environment_vars": {
+            "DATABASE_URL_length": len(os.getenv('DATABASE_URL', '')) if os.getenv('DATABASE_URL') else 0,
+            "RENDER": os.getenv('RENDER', 'Not set'),
+            "PORT": os.getenv('PORT', 'Not set')
+        }
+    })
+
 
 @app.route("/force-sync-now")
 def force_sync_now():
