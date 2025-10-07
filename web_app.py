@@ -591,6 +591,47 @@ load_menu()
 
 # - Маршруты -
 
+@app.route("/debug-import")
+def debug_import():
+    """Диагностика импорта psycopg2"""
+    import sys
+    import pkg_resources
+    
+    result = {
+        "python_version": sys.version,
+        "installed_packages": [],
+        "psycopg2_import_error": None
+    }
+    
+    # Проверяем установленные пакеты
+    try:
+        installed_packages = [pkg.key for pkg in pkg_resources.working_set]
+        result["installed_packages"] = [pkg for pkg in installed_packages if 'psycopg' in pkg or 'flask' in pkg]
+    except Exception as e:
+        result["package_check_error"] = str(e)
+    
+    # Проверяем импорт psycopg2
+    try:
+        import psycopg2
+        result["psycopg2_import"] = "✅ Успешно"
+        result["psycopg2_version"] = psycopg2.__version__
+    except ImportError as e:
+        result["psycopg2_import"] = "❌ Ошибка"
+        result["psycopg2_import_error"] = str(e)
+    
+    # Проверяем подключение к БД
+    try:
+        conn = get_db_connection()
+        if conn:
+            result["database_connection"] = "✅ Успешно"
+            conn.close()
+        else:
+            result["database_connection"] = "❌ Не подключено"
+    except Exception as e:
+        result["database_connection"] = f"❌ Ошибка: {str(e)}"
+    
+    return jsonify(result)
+
 @app.route("/debug-database")
 def debug_database():
     """Диагностика базы данных"""
